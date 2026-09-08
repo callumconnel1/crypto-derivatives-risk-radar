@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: crypto-derivatives-risk-radar
+Version: 0.1.0
+Summary: Quantitative crypto derivatives risk monitoring using CoinMarketCap data
+Requires-Python: >=3.11
+License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: polars
+Requires-Dist: pandas
+Requires-Dist: scipy
+Requires-Dist: matplotlib
+Requires-Dist: arch
+Requires-Dist: statsmodels
+Requires-Dist: httpx
+Requires-Dist: python-dotenv
+Dynamic: license-file

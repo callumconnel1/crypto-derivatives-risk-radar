@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crypto-derivatives-risk-radar"
+version = "0.1.0"
+description = "Quantitative crypto derivatives risk monitoring using CoinMarketCap data"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "polars",
+    "pandas",
+    "scipy",
+    "matplotlib",
+    "arch",
+    "statsmodels",
+    "httpx",
+    "python-dotenv",
+]
+
+[tool.setuptools]
+package-dir = {"" = "backend"}
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+
+[tool.ruff]
+line-length = 100

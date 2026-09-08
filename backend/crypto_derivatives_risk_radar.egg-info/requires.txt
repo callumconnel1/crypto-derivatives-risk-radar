@@ -1,0 +1,9 @@
+numpy
+polars
+pandas
+scipy
+matplotlib
+arch
+statsmodels
+httpx
+python-dotenv
