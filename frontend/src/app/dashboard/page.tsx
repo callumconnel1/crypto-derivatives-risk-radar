@@ -1,4 +1,6 @@
 import Link from "next/link";
+import MarketTable from "@/components/MarketTable";
+import VolatilityPanel from "@/components/VolatilityPanel";
 
 const assets = [
   {
@@ -78,7 +80,7 @@ function changeColour(change: string) {
 
 export default function Dashboard() {
   return (
-    <main className="min-h-screen bg-[#050505] text-[#f2f2f2]">
+    <main className="dashboard-terminal min-h-screen bg-[#050505] text-[#f2f2f2]">
 
       {/* NAV */}
       <header className="flex items-center justify-between border-b border-[#3a3a3a] bg-[#0d0d0d] px-5 py-2 text-xs">
@@ -191,124 +193,10 @@ export default function Dashboard() {
 
         </div>
 
-        {/* TABLE */}
-        <div className="overflow-x-auto border border-[#3a3a3a]">
+        <MarketTable />
 
-          <table className="w-full border-collapse text-xs">
-
-            <thead>
-
-              <tr className="bg-[#171717] text-left text-[#b5b5b5]">
-
-                <th className="border-r border-[#3a3a3a] px-3 py-2">
-                  ASSET
-                </th>
-
-                <th className="border-r border-[#3a3a3a] px-3 py-2">
-                  PRICE
-                </th>
-
-                <th className="border-r border-[#3a3a3a] px-3 py-2">
-                  24H
-                </th>
-
-                <th className="border-r border-[#3a3a3a] px-3 py-2">
-                  RISK
-                </th>
-
-                <th className="border-r border-[#3a3a3a] px-3 py-2">
-                  FCAST VOL
-                </th>
-
-                <th className="border-r border-[#3a3a3a] px-3 py-2">
-                  FUNDING
-                </th>
-
-                <th className="border-r border-[#3a3a3a] px-3 py-2">
-                  OPEN INT.
-                </th>
-
-                <th className="border-r border-[#3a3a3a] px-3 py-2">
-                  LIQUIDATIONS
-                </th>
-
-                <th className="px-3 py-2">
-                  STATE
-                </th>
-
-              </tr>
-
-            </thead>
-
-            <tbody>
-
-              {assets.map((asset) => (
-
-                <tr
-                  key={asset.symbol}
-                  className="border-t border-[#333] bg-[#0b0b0b] transition hover:bg-[#161616]"
-                >
-
-                  <td className="border-r border-[#333] px-3 py-3">
-
-                    <div className="font-bold text-[#f5f5f5]">
-                      {asset.symbol}
-                    </div>
-
-                    <div className="mt-1 text-[10px] text-[#7a7a7a]">
-                      {asset.name}
-                    </div>
-
-                  </td>
-
-                  <td className="border-r border-[#333] px-3 py-3 text-[#e0e0e0]">
-                    {asset.price}
-                  </td>
-
-                  <td
-                    className={`border-r border-[#333] px-3 py-3 ${changeColour(
-                      asset.change
-                    )}`}
-                  >
-                    {asset.change}
-                  </td>
-
-                  <td
-                    className={`border-r border-[#333] px-3 py-3 text-lg font-bold ${riskColour(
-                      asset.risk
-                    )}`}
-                  >
-                    {asset.risk}
-                  </td>
-
-                  <td className="border-r border-[#333] px-3 py-3 text-[#d3d3d3]">
-                    {asset.vol}
-                  </td>
-
-                  <td className="border-r border-[#333] px-3 py-3 text-[#d3d3d3]">
-                    {asset.funding}
-                  </td>
-
-                  <td className="border-r border-[#333] px-3 py-3 text-[#d3d3d3]">
-                    {asset.oi}
-                  </td>
-
-                  <td className="border-r border-[#333] px-3 py-3 text-[#d3d3d3]">
-                    {asset.liquidations}
-                  </td>
-
-                  <td className="px-3 py-3 text-[#ffb000]">
-                    {asset.state}
-                  </td>
-
-                </tr>
-
-              ))}
-
-            </tbody>
-
-          </table>
-
+        <div className="mt-4">
+          <VolatilityPanel />
         </div>
 
         {/* LOWER PANELS */}
