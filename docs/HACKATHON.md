@@ -111,7 +111,7 @@ The model was compared with EWMA in walk-forward testing.
 
 Funding, basis and liquidations use prior-only empirical midrank percentiles:
 
-$$ P(x_t) = \frac{\#\{j : x_j < x_t\} + \tfrac{1}{2}\#\{j : x_j = x_t\}}{N}. $$
+$$ P(x_t) = \frac{\left|\{j \mid x_j < x_t\}\right| + \tfrac{1}{2}\left|\{j \mid x_j = x_t\}\right|}{N}. $$
 
 This is particularly useful for tied and zero-heavy liquidation data.
 
