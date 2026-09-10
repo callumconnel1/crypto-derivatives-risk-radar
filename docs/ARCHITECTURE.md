@@ -191,15 +191,7 @@ Ties receive average ranks.
 
 The liquidation factor uses conservative confirmation:
 
-\[
-Q_i
-=
-\min
-\left(
-P^{\text{own history}}_{\text{liq},i},
-P^{\text{cross-section}}_{\text{liq/OI},i}
-\right).
-\]
+$$ Q_i = \min \left( P^{\text{own history}}_{\text{liq},i}, P^{\text{cross-section}}_{\text{liq/OI},i} \right). $$
 
 A liquidation event must therefore be unusual relative to both the asset's own recent behaviour and its current derivatives exposure.
 
