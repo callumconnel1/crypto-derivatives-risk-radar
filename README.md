@@ -183,7 +183,7 @@ Market data attribution: **CoinMarketCap API**. Use of CoinMarketCap data remain
 ### 1. Clone the repository
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/callumconnel1/crypto-derivatives-risk-radar.git
 cd crypto-derivatives-risk-radar
 ```
 
