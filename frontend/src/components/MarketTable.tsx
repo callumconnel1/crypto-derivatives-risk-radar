@@ -9,18 +9,25 @@ import {
 
 
 type MarketAsset = {
-  timestamp: string;
-  id: number;
+  id?: number | null;
   asset: string;
   symbol: string;
 
-  price: number;
+  price: number | null;
 
   volume_24h: number | null;
-  percent_change_1h: number | null;
-  percent_change_24h: number | null;
-
   market_cap: number | null;
+
+  // Raw CMC percentage-point fields, if retained.
+  percent_change_1h?: number | null;
+  percent_change_24h?: number | null;
+
+  // Processed decimal-return fields.
+  price_change_1h?: number | null;
+  price_change_24h?: number | null;
+
+  collected_at?: string | null;
+  timestamp?: string | null;
 };
 
 
@@ -28,19 +35,44 @@ const REFRESH_INTERVAL = 15_000;
 
 
 export default function MarketTable() {
-  const [assets, setAssets] = useState<MarketAsset[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [
+    assets,
+    setAssets,
+  ] = useState<MarketAsset[]>([]);
 
-  const [error, setError] = useState<string | null>(null);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  const [lastUpdated, setLastUpdated] =
-    useState<Date | null>(null);
+  const [
+    refreshing,
+    setRefreshing,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState<string | null>(
+    null,
+  );
+
+  const [
+    lastUpdated,
+    setLastUpdated,
+  ] = useState<Date | null>(
+    null,
+  );
+
 
   const timeoutRef =
-    useRef<ReturnType<typeof setTimeout> | null>(null);
+    useRef<ReturnType<typeof setTimeout> | null>(
+      null,
+    );
 
-  const mountedRef = useRef(true);
+  const mountedRef =
+    useRef(true);
+
 
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL ??
@@ -52,6 +84,7 @@ export default function MarketTable() {
       try {
         setRefreshing(true);
 
+
         const response = await fetch(
           `${API_URL}/api/market/latest?t=${Date.now()}`,
           {
@@ -61,46 +94,69 @@ export default function MarketTable() {
             headers: {
               Accept: "application/json",
             },
-          }
+          },
         );
+
 
         if (!response.ok) {
           throw new Error(
-            `Backend returned HTTP ${response.status}`
+            `Backend returned HTTP ${response.status}`,
           );
         }
 
-        const result = await response.json();
+
+        const result =
+          await response.json();
+
 
         if (!mountedRef.current) {
           return;
         }
 
+
         if (!Array.isArray(result.data)) {
           throw new Error(
-            "Backend response did not contain a data array"
+            "Backend response did not contain a data array",
           );
         }
 
-        setAssets(result.data);
 
-        setLastUpdated(
-          new Date()
+        const rows =
+          result.data as MarketAsset[];
+
+
+        setAssets(
+          rows,
         );
 
+
+        setLastUpdated(
+          latestTimestamp(
+            rows,
+          )
+          ??
+          new Date(),
+        );
+
+
         setError(null);
+
       } catch (err) {
         if (!mountedRef.current) {
           return;
         }
 
+
         if (err instanceof Error) {
-          setError(err.message);
+          setError(
+            err.message,
+          );
         } else {
           setError(
-            "Failed to load market data"
+            "Failed to load market data",
           );
         }
+
       } finally {
         if (mountedRef.current) {
           setLoading(false);
@@ -108,26 +164,30 @@ export default function MarketTable() {
         }
       }
     },
-    [API_URL]
+    [API_URL],
   );
 
 
   useEffect(() => {
     mountedRef.current = true;
 
+
     async function poll() {
       await loadMarketData();
+
 
       if (!mountedRef.current) {
         return;
       }
 
+
       timeoutRef.current =
         setTimeout(
           poll,
-          REFRESH_INTERVAL
+          REFRESH_INTERVAL,
         );
     }
+
 
     poll();
 
@@ -143,32 +203,34 @@ export default function MarketTable() {
 
     window.addEventListener(
       "focus",
-      loadMarketData
+      loadMarketData,
     );
 
     document.addEventListener(
       "visibilitychange",
-      handleVisibilityChange
+      handleVisibilityChange,
     );
 
 
     return () => {
       mountedRef.current = false;
 
+
       if (timeoutRef.current) {
         clearTimeout(
-          timeoutRef.current
+          timeoutRef.current,
         );
       }
 
+
       window.removeEventListener(
         "focus",
-        loadMarketData
+        loadMarketData,
       );
 
       document.removeEventListener(
         "visibilitychange",
-        handleVisibilityChange
+        handleVisibilityChange,
       );
     };
   }, [loadMarketData]);
@@ -180,24 +242,27 @@ export default function MarketTable() {
   ) {
     return (
       <div className="border border-[#444] bg-[#0d0d0d] p-6 text-sm text-[#c0c0c0]">
-        LOADING MARKET DATA...
+        LOADING SPOT SNAPSHOT...
       </div>
     );
   }
 
 
   return (
-    <section>
-      <div className="mb-4 flex items-end justify-between gap-4">
+    <section className="overflow-hidden border border-[#444] bg-[#0b0b0b]">
+
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#444] bg-[#171717] px-4 py-3">
 
         <div>
-          <h2 className="text-base font-bold tracking-wide text-[#f5f5f5]">
-            LIVE MARKET DATA
+
+          <h2 className="text-sm font-black tracking-[0.08em] text-[#f5f5f5]">
+            SPOT MARKET SNAPSHOT
           </h2>
 
-          <div className="mt-1 text-xs tracking-wide text-[#a0a0a0]">
-            COINMARKETCAP SPOT MARKET SNAPSHOT
+          <div className="mt-1 text-xs tracking-wide text-[#999]">
+            COLLECTOR-CACHED COINMARKETCAP DATA · FRONTEND DOES NOT CALL CMC DIRECTLY
           </div>
+
         </div>
 
 
@@ -206,18 +271,19 @@ export default function MarketTable() {
           <span
             className={
               error
-                ? "text-[#ff5c5c]"
-                : "text-[#38d996]"
+                ? "font-bold text-[#ff5c5c]"
+                : "font-bold text-[#38d996]"
             }
           >
-            ● {error ? "ERROR" : "LIVE"}
+            ● {error ? "ERROR" : "ACTIVE"}
           </span>
 
 
           {lastUpdated && (
             <span className="text-[#aaa]">
-              UPDATED{" "}
-              {lastUpdated.toLocaleTimeString()}
+              {lastUpdated
+                .toISOString()
+                .slice(11, 19)} UTC
             </span>
           )}
 
@@ -247,139 +313,169 @@ export default function MarketTable() {
           </button>
 
         </div>
+
       </div>
 
 
       {error && (
-        <div className="mb-3 border border-[#ff5c5c] bg-[#170b0b] px-4 py-3 text-sm text-[#ff8080]">
+        <div className="border-b border-[#5a2c2c] bg-[#170b0b] px-4 py-3 text-sm text-[#ff8080]">
           MARKET DATA ERROR: {error}
         </div>
       )}
 
 
-      <div className="overflow-x-auto border border-[#444]">
+      <div className="max-h-[560px] overflow-auto">
 
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full min-w-[850px] border-collapse text-sm">
 
-          <thead>
-            <tr className="bg-[#191919] text-left text-[#e0e0e0]">
+          <thead className="sticky top-0 z-20">
+
+            <tr className="bg-[#141414] text-left text-xs text-[#d2d2d2] shadow-[0_1px_0_#3b3b3b]">
 
               <TableHeader>
                 ASSET
               </TableHeader>
 
-              <TableHeader>
+              <TableHeader align="right">
                 PRICE
               </TableHeader>
 
-              <TableHeader>
+              <TableHeader align="right">
                 1H
               </TableHeader>
 
-              <TableHeader>
+              <TableHeader align="right">
                 24H
               </TableHeader>
 
-              <TableHeader>
+              <TableHeader align="right">
                 VOLUME 24H
               </TableHeader>
 
-              <th className="px-4 py-3 font-bold tracking-wide">
+              <TableHeader
+                align="right"
+                last
+              >
                 MARKET CAP
-              </th>
+              </TableHeader>
 
             </tr>
+
           </thead>
 
 
           <tbody>
 
-            {assets.map((asset) => (
-              <tr
-                key={asset.id}
-                className="
-                  border-t border-[#333]
-                  bg-[#0c0c0c]
-                  transition
-                  hover:bg-[#171717]
-                "
-              >
+            {assets.map(
+              (asset) => {
+                const change1h =
+                  changePercent(
+                    asset.price_change_1h,
+                    asset.percent_change_1h,
+                  );
 
-                <td className="border-r border-[#333] px-4 py-4">
-
-                  <div className="font-bold text-[#ffffff]">
-                    {asset.symbol}
-                  </div>
-
-                  <div className="mt-1 text-xs text-[#aaa]">
-                    {asset.asset}
-                  </div>
-
-                </td>
+                const change24h =
+                  changePercent(
+                    asset.price_change_24h,
+                    asset.percent_change_24h,
+                  );
 
 
-                <td className="border-r border-[#333] px-4 py-4 font-medium text-[#ededed]">
-                  {formatPrice(
-                    asset.price
-                  )}
-                </td>
+                return (
+                  <tr
+                    key={asset.symbol}
+                    className="
+                      border-t border-[#333]
+                      bg-[#0c0c0c]
+                      transition
+                      hover:bg-[#171717]
+                    "
+                  >
+
+                    <td className="border-r border-[#333] px-4 py-3">
+
+                      <div className="font-black text-[#ffffff]">
+                        {asset.symbol}
+                      </div>
+
+                      <div className="mt-1 text-xs text-[#aaa]">
+                        {asset.asset}
+                      </div>
+
+                    </td>
 
 
-                <td
-                  className={`
-                    border-r
-                    border-[#333]
-                    px-4
-                    py-4
-                    font-medium
-                    ${changeColour(
-                      asset.percent_change_1h
-                    )}
-                  `}
-                >
-                  {formatPercent(
-                    asset.percent_change_1h
-                  )}
-                </td>
+                    <td className="border-r border-[#333] px-4 py-3 text-right font-semibold tabular-nums text-[#f0f0f0]">
+                      {formatPrice(
+                        asset.price,
+                      )}
+                    </td>
 
 
-                <td
-                  className={`
-                    border-r
-                    border-[#333]
-                    px-4
-                    py-4
-                    font-medium
-                    ${changeColour(
-                      asset.percent_change_24h
-                    )}
-                  `}
-                >
-                  {formatPercent(
-                    asset.percent_change_24h
-                  )}
-                </td>
+                    <td
+                      className={`
+                        border-r
+                        border-[#333]
+                        px-4
+                        py-3
+                        text-right
+                        font-semibold
+                        tabular-nums
+                        ${changeColour(
+                          change1h,
+                        )}
+                      `}
+                    >
+                      {formatPercentPoints(
+                        change1h,
+                      )}
+                    </td>
 
 
-                <td className="border-r border-[#333] px-4 py-4 text-[#d5d5d5]">
-                  {formatCompactUSD(
-                    asset.volume_24h
-                  )}
-                </td>
+                    <td
+                      className={`
+                        border-r
+                        border-[#333]
+                        px-4
+                        py-3
+                        text-right
+                        font-semibold
+                        tabular-nums
+                        ${changeColour(
+                          change24h,
+                        )}
+                      `}
+                    >
+                      {formatPercentPoints(
+                        change24h,
+                      )}
+                    </td>
 
 
-                <td className="px-4 py-4 text-[#d5d5d5]">
-                  {formatCompactUSD(
-                    asset.market_cap
-                  )}
-                </td>
+                    <td className="border-r border-[#333] px-4 py-3 text-right tabular-nums text-[#d5d5d5]">
+                      {formatCompactUSD(
+                        asset.volume_24h,
+                      )}
+                    </td>
 
-              </tr>
-            ))}
+
+                    <td className="px-4 py-3 text-right tabular-nums text-[#d5d5d5]">
+                      {formatCompactUSD(
+                        asset.market_cap,
+                      )}
+                    </td>
+
+                  </tr>
+                );
+              },
+            )}
 
           </tbody>
+
         </table>
+
       </div>
+
     </section>
   );
 }
@@ -387,19 +483,80 @@ export default function MarketTable() {
 
 function TableHeader({
   children,
+  align = "left",
+  last = false,
 }: {
   children: React.ReactNode;
+  align?: "left" | "right";
+  last?: boolean;
 }) {
   return (
-    <th className="border-r border-[#444] px-4 py-3 font-bold tracking-wide">
+    <th
+      className={`
+        px-4
+        py-3
+        font-bold
+        tracking-wide
+        ${
+          last
+            ? ""
+            : "border-r border-[#444]"
+        }
+        ${
+          align === "right"
+            ? "text-right"
+            : "text-left"
+        }
+      `}
+    >
       {children}
     </th>
   );
 }
 
 
+function finite(
+  value: number | null | undefined,
+): value is number {
+  return (
+    value !== null &&
+    value !== undefined &&
+    Number.isFinite(value)
+  );
+}
+
+
+function changePercent(
+  processedDecimal:
+    number | null | undefined,
+  rawPercentagePoints:
+    number | null | undefined,
+) {
+  if (
+    finite(
+      processedDecimal,
+    )
+  ) {
+    return (
+      processedDecimal *
+      100
+    );
+  }
+
+  if (
+    finite(
+      rawPercentagePoints,
+    )
+  ) {
+    return rawPercentagePoints;
+  }
+
+  return null;
+}
+
+
 function changeColour(
-  value: number | null
+  value: number | null,
 ) {
   if (value === null) {
     return "text-[#aaa]";
@@ -417,30 +574,36 @@ function changeColour(
 }
 
 
-function formatPercent(
-  value: number | null
+function formatPercentPoints(
+  value: number | null,
 ) {
   if (value === null) {
     return "—";
   }
 
   const prefix =
-    value > 0 ? "+" : "";
+    value > 0
+      ? "+"
+      : "";
 
   return `${prefix}${value.toFixed(2)}%`;
 }
 
 
 function formatPrice(
-  value: number
+  value: number | null,
 ) {
+  if (!finite(value)) {
+    return "—";
+  }
+
   if (value >= 1000) {
     return `$${value.toLocaleString(
       "en-US",
       {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      }
+      },
     )}`;
   }
 
@@ -453,9 +616,9 @@ function formatPrice(
 
 
 function formatCompactUSD(
-  value: number | null
+  value: number | null,
 ) {
-  if (value === null) {
+  if (!finite(value)) {
     return "—";
   }
 
@@ -466,6 +629,48 @@ function formatCompactUSD(
       currency: "USD",
       notation: "compact",
       maximumFractionDigits: 2,
-    }
+    },
   ).format(value);
+}
+
+
+function latestTimestamp(
+  rows: MarketAsset[],
+) {
+  const times = rows
+    .map(
+      (row) =>
+        row.collected_at ??
+        row.timestamp ??
+        null,
+    )
+    .filter(
+      (
+        value,
+      ): value is string =>
+        Boolean(value),
+    )
+    .map(
+      (value) =>
+        new Date(value),
+    )
+    .filter(
+      (value) =>
+        !Number.isNaN(
+          value.getTime(),
+        ),
+    )
+    .sort(
+      (
+        a,
+        b,
+      ) =>
+        a.getTime() -
+        b.getTime(),
+    );
+
+  return (
+    times.at(-1) ??
+    null
+  );
 }

@@ -848,6 +848,54 @@ def collect_cycle(
         )
 
     # ============================================================
+    # UPDATE SPOT FEATURE ENGINE
+    # ============================================================
+
+    try:
+
+        spot_script = (
+            PROJECT_ROOT
+            / "scripts"
+            / "update_spot.py"
+        )
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(spot_script),
+            ],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        if result.returncode == 0:
+
+            logger.info(
+                "Spot snapshot updated"
+            )
+
+        else:
+
+            logger.error(
+                "Spot update failed:\n%s",
+                result.stderr,
+            )
+
+    except subprocess.TimeoutExpired:
+
+        logger.error(
+            "Spot update timed out"
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Failed updating spot snapshot"
+        )
+
+    # ============================================================
     # UPDATE VOLATILITY ENGINE
     # ============================================================
 
@@ -894,7 +942,372 @@ def collect_cycle(
         logger.exception(
             "Failed updating volatility snapshot"
         )
-        
+
+
+    # ============================================================
+    # UPDATE DERIVATIVES ENGINE
+    # ============================================================
+
+    try:
+
+        derivatives_script = (
+            PROJECT_ROOT
+            / "scripts"
+            / "update_derivatives.py"
+        )
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(derivatives_script),
+            ],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        if result.returncode == 0:
+
+            logger.info(
+                "Derivatives snapshot updated"
+            )
+
+        else:
+
+            logger.error(
+                "Derivatives update failed:\n%s",
+                result.stderr,
+            )
+
+    except subprocess.TimeoutExpired:
+
+        logger.error(
+            "Derivatives update timed out"
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Failed updating derivatives snapshot"
+        )
+
+    # ============================================================
+    # UPDATE FUNDING CALIBRATION ENGINE
+    # ============================================================
+
+    try:
+
+        funding_script = (
+            PROJECT_ROOT
+            / "scripts"
+            / "update_funding.py"
+        )
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(funding_script),
+            ],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        if result.returncode == 0:
+
+            logger.info(
+                "Funding snapshot updated"
+            )
+
+        else:
+
+            logger.error(
+                "Funding update failed:\n%s",
+                result.stderr,
+            )
+
+    except subprocess.TimeoutExpired:
+
+        logger.error(
+            "Funding update timed out"
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Failed updating funding snapshot"
+        )
+
+    # ============================================================
+    # UPDATE BASIS CALIBRATION ENGINE
+    # ============================================================
+
+    basis_update_ok = False
+
+    try:
+
+        basis_script = (
+            PROJECT_ROOT
+            / "scripts"
+            / "update_basis.py"
+        )
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(basis_script),
+            ],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        if result.returncode == 0:
+
+            basis_update_ok = True
+
+            logger.info(
+                "Basis snapshot updated"
+            )
+
+        else:
+
+            logger.error(
+                "Basis update failed:\n%s",
+                result.stderr,
+            )
+
+    except subprocess.TimeoutExpired:
+
+        logger.error(
+            "Basis update timed out"
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Failed updating basis snapshot"
+        )
+
+    # ============================================================
+    # UPDATE LIQUIDATION ENGINE
+    # ============================================================
+
+    try:
+
+        liquidation_script = (
+            PROJECT_ROOT
+            / "scripts"
+            / "update_liquidations.py"
+        )
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(liquidation_script),
+            ],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        if result.returncode == 0:
+
+            logger.info(
+                "Liquidation snapshot updated"
+            )
+
+        else:
+
+            logger.error(
+                "Liquidation update failed:\n%s",
+                result.stderr,
+            )
+
+    except subprocess.TimeoutExpired:
+
+        logger.error(
+            "Liquidation update timed out"
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Failed updating liquidation snapshot"
+        )
+
+    # ============================================================
+    # UPDATE MARKET STATE ENGINE
+    # ============================================================
+
+    try:
+
+        state_script = (
+            PROJECT_ROOT
+            / "scripts"
+            / "update_states.py"
+        )
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(state_script),
+            ],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        if result.returncode == 0:
+
+            logger.info(
+                "Market state snapshot updated"
+            )
+
+        else:
+
+            logger.error(
+                "Market state update failed:\n%s",
+                result.stderr,
+            )
+
+    except subprocess.TimeoutExpired:
+
+        logger.error(
+            "Market state update timed out"
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Failed updating market state snapshot"
+        )
+
+    # ============================================================
+    # UPDATE PROVISIONAL CDRR RISK ENGINE
+    # ============================================================
+
+    risk_update_ok = False
+
+    try:
+
+        risk_script = (
+            PROJECT_ROOT
+            / "scripts"
+            / "update_risk.py"
+        )
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(risk_script),
+            ],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        if result.returncode == 0:
+
+            risk_update_ok = True
+
+            logger.info(
+                "Risk snapshot updated"
+            )
+
+        else:
+
+            logger.error(
+                "Risk update failed:\n%s",
+                result.stderr,
+            )
+
+    except subprocess.TimeoutExpired:
+
+        logger.error(
+            "Risk update timed out"
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Failed updating risk snapshot"
+        )
+
+
+    # ============================================================
+    # UPDATE MARKET-STRUCTURE RESEARCH HISTORY
+    #
+    # Research-only:
+    # - no API credits
+    # - does not modify production risk/latest.parquet
+    # - requires both fresh basis and fresh risk snapshots
+    # ============================================================
+
+    if (
+        basis_update_ok
+        and risk_update_ok
+    ):
+
+        try:
+
+            research_script = (
+                PROJECT_ROOT
+                / "scripts"
+                / "analyse_market_structure.py"
+            )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(research_script),
+                ],
+                cwd=PROJECT_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+
+            if result.returncode == 0:
+
+                logger.info(
+                    "Market structure research snapshot updated"
+                )
+
+            else:
+
+                logger.error(
+                    "Market structure research update failed:\n%s",
+                    result.stderr,
+                )
+
+        except subprocess.TimeoutExpired:
+
+            logger.error(
+                "Market structure research update timed out"
+            )
+
+        except Exception:
+
+            logger.exception(
+                "Failed updating market structure research"
+            )
+
+    else:
+
+        logger.warning(
+            "Market structure research skipped | "
+            "basis_update_ok=%s | risk_update_ok=%s",
+            basis_update_ok,
+            risk_update_ok,
+        )
+
 
     logger.info(
         "Collection cycle complete"

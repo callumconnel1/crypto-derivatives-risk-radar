@@ -1,9 +1,0 @@
-LICENSE
-README.md
-pyproject.toml
-backend/crypto_derivatives_risk_radar.egg-info/PKG-INFO
-backend/crypto_derivatives_risk_radar.egg-info/SOURCES.txt
-backend/crypto_derivatives_risk_radar.egg-info/dependency_links.txt
-backend/crypto_derivatives_risk_radar.egg-info/requires.txt
-backend/crypto_derivatives_risk_radar.egg-info/top_level.txt
-backend/risk_radar/__init__.py

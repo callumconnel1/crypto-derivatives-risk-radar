@@ -36,7 +36,7 @@ type VolatilityAsset = {
 
   ewma_lambda: number | null;
 
-  calculated_at?: string;
+  calculated_at?: string | null;
 };
 
 
@@ -44,22 +44,34 @@ const REFRESH_INTERVAL = 15_000;
 
 
 export default function VolatilityPanel() {
-  const [data, setData] =
-    useState<VolatilityAsset[]>([]);
+  const [
+    data,
+    setData,
+  ] = useState<VolatilityAsset[]>([]);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  const [error, setError] =
-    useState<string | null>(null);
+  const [
+    error,
+    setError,
+  ] = useState<string | null>(
+    null,
+  );
 
-  const [lastUpdated, setLastUpdated] =
-    useState<Date | null>(null);
+  const [
+    lastUpdated,
+    setLastUpdated,
+  ] = useState<Date | null>(
+    null,
+  );
 
 
   const timeoutRef =
     useRef<ReturnType<typeof setTimeout> | null>(
-      null
+      null,
     );
 
   const mountedRef =
@@ -78,13 +90,13 @@ export default function VolatilityPanel() {
           `${API_URL}/api/volatility/latest?t=${Date.now()}`,
           {
             cache: "no-store",
-          }
+          },
         );
 
 
         if (!response.ok) {
           throw new Error(
-            `Backend returned HTTP ${response.status}`
+            `Backend returned HTTP ${response.status}`,
           );
         }
 
@@ -95,7 +107,7 @@ export default function VolatilityPanel() {
 
         if (!Array.isArray(result.data)) {
           throw new Error(
-            "Invalid volatility response"
+            "Invalid volatility response",
           );
         }
 
@@ -105,11 +117,23 @@ export default function VolatilityPanel() {
         }
 
 
-        setData(result.data);
+        const rows =
+          result.data as VolatilityAsset[];
+
+
+        setData(
+          rows,
+        );
+
 
         setLastUpdated(
-          new Date()
+          latestCalculatedAt(
+            rows,
+          )
+          ??
+          new Date(),
         );
+
 
         setError(null);
 
@@ -121,11 +145,11 @@ export default function VolatilityPanel() {
 
         if (err instanceof Error) {
           setError(
-            err.message
+            err.message,
           );
         } else {
           setError(
-            "Failed to load volatility data"
+            "Failed to load volatility data",
           );
         }
 
@@ -135,7 +159,7 @@ export default function VolatilityPanel() {
         }
       }
     },
-    [API_URL]
+    [API_URL],
   );
 
 
@@ -155,7 +179,7 @@ export default function VolatilityPanel() {
       timeoutRef.current =
         setTimeout(
           poll,
-          REFRESH_INTERVAL
+          REFRESH_INTERVAL,
         );
     }
 
@@ -169,17 +193,19 @@ export default function VolatilityPanel() {
 
       if (timeoutRef.current) {
         clearTimeout(
-          timeoutRef.current
+          timeoutRef.current,
         );
       }
     };
-
   }, [loadData]);
 
 
-  if (loading) {
+  if (
+    loading &&
+    data.length === 0
+  ) {
     return (
-      <div className="border border-[#444] bg-[#0d0d0d] p-5 text-sm text-[#bbb]">
+      <div className="border border-[#444] bg-[#0d0d0d] p-6 text-sm text-[#bbb]">
         LOADING VOLATILITY ENGINE...
       </div>
     );
@@ -187,20 +213,19 @@ export default function VolatilityPanel() {
 
 
   return (
-    <section className="border border-[#3f3f3f] bg-[#090909]">
+    <section className="overflow-hidden border border-[#444] bg-[#090909]">
 
       {/* HEADER */}
-
-      <div className="flex items-center justify-between border-b border-[#3f3f3f] bg-[#151515] px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#444] bg-[#171717] px-4 py-3">
 
         <div>
 
-          <div className="text-sm font-bold tracking-wide text-[#ffb000]">
+          <div className="text-sm font-black tracking-[0.08em] text-[#ffb000]">
             VOLATILITY MONITOR
           </div>
 
-          <div className="mt-1 text-xs text-[#929292]">
-            REALIZED VOL + NEXT-1H CONDITIONAL FORECASTS · MAIN FIGURES ANNUALIZED
+          <div className="mt-1 text-xs text-[#999]">
+            REALISED VOL + NEXT-1H CONDITIONAL FORECASTS · MAIN FIGURES ANNUALISED
           </div>
 
         </div>
@@ -211,8 +236,8 @@ export default function VolatilityPanel() {
           <span
             className={
               error
-                ? "text-[#ff5c5c]"
-                : "text-[#38d996]"
+                ? "font-bold text-[#ff5c5c]"
+                : "font-bold text-[#38d996]"
             }
           >
             ● {error ? "ERROR" : "ACTIVE"}
@@ -221,8 +246,9 @@ export default function VolatilityPanel() {
 
           {lastUpdated && (
             <span className="text-[#999]">
-              UPDATED{" "}
-              {lastUpdated.toLocaleTimeString()}
+              {lastUpdated
+                .toISOString()
+                .slice(11, 19)} UTC
             </span>
           )}
 
@@ -232,59 +258,60 @@ export default function VolatilityPanel() {
 
 
       {/* ERROR */}
-
       {error && (
-        <div className="border-b border-[#ff5c5c] bg-[#170b0b] px-4 py-3 text-sm text-[#ff7070]">
+        <div className="border-b border-[#5a2c2c] bg-[#170b0b] px-4 py-3 text-sm text-[#ff7070]">
           {error}
         </div>
       )}
 
 
       {/* TABLE */}
+      <div className="max-h-[560px] overflow-auto">
 
-      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1050px] border-collapse text-sm">
 
-        <table className="w-full border-collapse text-sm">
+          <thead className="sticky top-0 z-20">
 
-          <thead>
-
-            <tr className="bg-[#111] text-left text-[#cfcfcf]">
+            <tr className="bg-[#141414] text-left text-xs text-[#d2d2d2] shadow-[0_1px_0_#3b3b3b]">
 
               <Header>
                 ASSET
               </Header>
 
-              <Header>
+              <Header align="right">
                 RV 1H
               </Header>
 
-              <Header>
+              <Header align="right">
                 RV 4H
               </Header>
 
-              <Header>
+              <Header align="right">
                 RV 24H
               </Header>
 
-              <Header>
+              <Header align="right">
                 24H PCTL
               </Header>
 
-              <Header>
-                PL 1H FWD VOL
+              <Header align="right">
+                PL 1H FWD
               </Header>
 
-              <Header>
-                EWMA 1H FWD VOL
+              <Header align="right">
+                EWMA 1H FWD
               </Header>
 
-              <Header>
+              <Header align="right">
                 MODEL SPREAD
               </Header>
 
-              <th className="px-4 py-3">
+              <Header
+                align="right"
+                last
+              >
                 4H / 24H
-              </th>
+              </Header>
 
             </tr>
 
@@ -293,109 +320,101 @@ export default function VolatilityPanel() {
 
           <tbody>
 
-            {data.map((asset) => (
+            {data.map(
+              (asset) => (
 
-              <tr
-                key={asset.symbol}
-                className="border-t border-[#303030] transition hover:bg-[#141414]"
-              >
-
-                {/* ASSET */}
-
-                <td className="border-r border-[#303030] px-4 py-4">
-
-                  <div className="font-bold text-white">
-                    {asset.symbol}
-                  </div>
-
-                  <div className="mt-1 text-xs text-[#888]">
-                    {asset.asset}
-                  </div>
-
-                </td>
-
-
-                {/* REALIZED VOL */}
-
-                <ValueCell>
-                  {formatVol(
-                    asset.realized_vol_1h
-                  )}
-                </ValueCell>
-
-
-                <ValueCell>
-                  {formatVol(
-                    asset.realized_vol_4h
-                  )}
-                </ValueCell>
-
-
-                <ValueCell>
-                  {formatVol(
-                    asset.realized_vol_24h
-                  )}
-                </ValueCell>
-
-
-                {/* PERCENTILE */}
-
-                <ValueCell>
-                  {formatPercentile(
-                    asset.vol_percentile_24h
-                  )}
-                </ValueCell>
-
-
-                {/* POWER-LAW FORECAST */}
-
-                <ForecastCell
-                  annualizedVol={
-                    asset.power_law_vol_forecast
-                  }
-                  primary
-                />
-
-
-                {/* EWMA FORECAST */}
-
-                <ForecastCell
-                  annualizedVol={
-                    asset.ewma_vol_forecast
-                  }
-                />
-
-
-                {/* MODEL SPREAD */}
-
-                <td
-                  className={`
-                    border-r
-                    border-[#303030]
-                    px-4
-                    py-4
-                    ${spreadColor(
-                      asset.model_disagreement
-                    )}
-                  `}
+                <tr
+                  key={asset.symbol}
+                  className="border-t border-[#303030] transition hover:bg-[#151515]"
                 >
-                  {formatSignedPercent(
-                    asset.model_disagreement
-                  )}
-                </td>
+
+                  {/* ASSET */}
+                  <td className="border-r border-[#303030] px-4 py-3">
+
+                    <div className="font-black text-white">
+                      {asset.symbol}
+                    </div>
+
+                    <div className="mt-1 text-xs text-[#aaa]">
+                      {asset.asset}
+                    </div>
+
+                  </td>
 
 
-                {/* VOL EXPANSION */}
+                  <ValueCell>
+                    {formatVol(
+                      asset.realized_vol_1h,
+                    )}
+                  </ValueCell>
 
-                <td className="px-4 py-4 text-[#ddd]">
-                  {formatRatio(
-                    asset.vol_ratio_4h_vs_24h
-                  )}
-                </td>
 
-              </tr>
+                  <ValueCell>
+                    {formatVol(
+                      asset.realized_vol_4h,
+                    )}
+                  </ValueCell>
 
-            ))}
+
+                  <ValueCell>
+                    {formatVol(
+                      asset.realized_vol_24h,
+                    )}
+                  </ValueCell>
+
+
+                  <ValueCell>
+                    {formatPercentile(
+                      asset.vol_percentile_24h,
+                    )}
+                  </ValueCell>
+
+
+                  <ForecastCell
+                    annualizedVol={
+                      asset.power_law_vol_forecast
+                    }
+                    primary
+                  />
+
+
+                  <ForecastCell
+                    annualizedVol={
+                      asset.ewma_vol_forecast
+                    }
+                  />
+
+
+                  <td
+                    className={`
+                      border-r
+                      border-[#303030]
+                      px-4
+                      py-3
+                      text-right
+                      font-semibold
+                      tabular-nums
+                      ${spreadColor(
+                        asset.model_disagreement,
+                      )}
+                    `}
+                  >
+                    {formatSignedPercent(
+                      asset.model_disagreement,
+                    )}
+                  </td>
+
+
+                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-[#ddd]">
+                    {formatRatio(
+                      asset.vol_ratio_4h_vs_24h,
+                    )}
+                  </td>
+
+                </tr>
+
+              ),
+            )}
 
           </tbody>
 
@@ -408,18 +427,35 @@ export default function VolatilityPanel() {
 }
 
 
-/* ============================================================
-   TABLE COMPONENTS
-   ============================================================ */
-
-
 function Header({
   children,
+  align = "left",
+  last = false,
 }: {
   children: React.ReactNode;
+  align?: "left" | "right";
+  last?: boolean;
 }) {
   return (
-    <th className="border-r border-[#333] px-4 py-3 font-semibold">
+    <th
+      className={`
+        whitespace-nowrap
+        px-4
+        py-3
+        font-bold
+        tracking-wide
+        ${
+          last
+            ? ""
+            : "border-r border-[#333]"
+        }
+        ${
+          align === "right"
+            ? "text-right"
+            : "text-left"
+        }
+      `}
+    >
       {children}
     </th>
   );
@@ -432,7 +468,7 @@ function ValueCell({
   children: React.ReactNode;
 }) {
   return (
-    <td className="border-r border-[#303030] px-4 py-4 text-[#ddd]">
+    <td className="border-r border-[#303030] px-4 py-3 text-right font-semibold tabular-nums text-[#ddd]">
       {children}
     </td>
   );
@@ -447,32 +483,32 @@ function ForecastCell({
   primary?: boolean;
 }) {
   return (
-    <td className="border-r border-[#303030] px-4 py-4">
+    <td className="border-r border-[#303030] px-4 py-3 text-right">
 
       <div
         className={
           primary
-            ? "font-semibold text-[#49c6e5]"
-            : "font-semibold text-[#ddd]"
+            ? "font-black tabular-nums text-[#49c6e5]"
+            : "font-semibold tabular-nums text-[#ddd]"
         }
       >
         {formatVol(
-          annualizedVol
+          annualizedVol,
         )}
 
-        <span className="ml-1 text-[10px] font-normal text-[#777]">
+        <span className="ml-1 text-[9px] font-normal text-[#929292]">
           ANN.
         </span>
       </div>
 
 
-      <div className="mt-1 text-[10px] text-[#8a8a8a]">
+      <div className="mt-1 text-[10px] text-[#999]">
 
         1H σ{" "}
 
-        <span className="text-[#b8b8b8]">
+        <span className="font-medium text-[#b8b8b8]">
           {formatOneHourSigma(
-            annualizedVol
+            annualizedVol,
           )}
         </span>
 
@@ -483,13 +519,8 @@ function ForecastCell({
 }
 
 
-/* ============================================================
-   FORMATTING
-   ============================================================ */
-
-
 function formatVol(
-  value: number | null | undefined
+  value: number | null | undefined,
 ) {
   if (
     value == null ||
@@ -498,12 +529,14 @@ function formatVol(
     return "—";
   }
 
-  return `${(value * 100).toFixed(1)}%`;
+  return `${(
+    value * 100
+  ).toFixed(1)}%`;
 }
 
 
 function formatOneHourSigma(
-  annualizedVol: number | null | undefined
+  annualizedVol: number | null | undefined,
 ) {
   if (
     annualizedVol == null ||
@@ -512,32 +545,22 @@ function formatOneHourSigma(
     return "—";
   }
 
-  /*
-   * Main forecast is annualized volatility.
-   *
-   * Convert to the standard deviation implied over
-   * the actual one-hour forecast horizon:
-   *
-   * sigma_1h = sigma_annual / sqrt(365 * 24)
-   */
-
   const oneHourSigma =
     annualizedVol
-    / Math.sqrt(
-      365 * 24
+    /
+    Math.sqrt(
+      365 * 24,
     );
 
-  return `${
-    (
-      oneHourSigma
-      * 100
-    ).toFixed(2)
-  }%`;
+  return `${(
+    oneHourSigma *
+    100
+  ).toFixed(2)}%`;
 }
 
 
 function formatPercentile(
-  value: number | null | undefined
+  value: number | null | undefined,
 ) {
   if (
     value == null ||
@@ -546,16 +569,14 @@ function formatPercentile(
     return "—";
   }
 
-  return `${
-    (
-      value * 100
-    ).toFixed(0)
-  }%`;
+  return `${(
+    value * 100
+  ).toFixed(0)}P`;
 }
 
 
 function formatRatio(
-  value: number | null | undefined
+  value: number | null | undefined,
 ) {
   if (
     value == null ||
@@ -569,7 +590,7 @@ function formatRatio(
 
 
 function formatSignedPercent(
-  value: number | null | undefined
+  value: number | null | undefined,
 ) {
   if (
     value == null ||
@@ -583,16 +604,14 @@ function formatSignedPercent(
       ? "+"
       : "";
 
-  return `${prefix}${
-    (
-      value * 100
-    ).toFixed(1)
-  }%`;
+  return `${prefix}${(
+    value * 100
+  ).toFixed(1)}%`;
 }
 
 
 function spreadColor(
-  value: number | null | undefined
+  value: number | null | undefined,
 ) {
   if (
     value == null ||
@@ -616,4 +635,46 @@ function spreadColor(
 
 
   return "text-[#ff6666]";
+}
+
+
+function latestCalculatedAt(
+  rows: VolatilityAsset[],
+) {
+  const times = rows
+    .map(
+      (row) =>
+        row.calculated_at ??
+        row.timestamp ??
+        null,
+    )
+    .filter(
+      (
+        value,
+      ): value is string =>
+        Boolean(value),
+    )
+    .map(
+      (value) =>
+        new Date(value),
+    )
+    .filter(
+      (value) =>
+        !Number.isNaN(
+          value.getTime(),
+        ),
+    )
+    .sort(
+      (
+        a,
+        b,
+      ) =>
+        a.getTime() -
+        b.getTime(),
+    );
+
+  return (
+    times.at(-1) ??
+    null
+  );
 }

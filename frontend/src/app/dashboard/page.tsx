@@ -1,191 +1,702 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+
+import DerivativesPanel from "@/components/DerivativesPanel";
+import LiquidationsPanel from "@/components/LiquidationsPanel";
 import MarketTable from "@/components/MarketTable";
+import RiskRadarPanel from "@/components/RiskRadarPanel";
 import VolatilityPanel from "@/components/VolatilityPanel";
 
-const assets = [
-  {
-    symbol: "ETH",
-    name: "Ethereum",
-    price: "$3,842.19",
-    change: "+2.14%",
-    risk: 87,
-    vol: "4.91%",
-    funding: "+0.048%",
-    oi: "$18.4B",
-    liquidations: "$218M",
-    state: "CROWDED LONG",
-  },
-  {
-    symbol: "SOL",
-    name: "Solana",
-    price: "$184.31",
-    change: "+1.02%",
-    risk: 78,
-    vol: "6.42%",
-    funding: "+0.031%",
-    oi: "$6.7B",
-    liquidations: "$71M",
-    state: "VOL EXPANSION",
-  },
-  {
-    symbol: "BTC",
-    name: "Bitcoin",
-    price: "$79,115.84",
-    change: "-1.42%",
-    risk: 61,
-    vol: "3.12%",
-    funding: "+0.012%",
-    oi: "$31.2B",
-    liquidations: "$84M",
-    state: "ELEVATED",
-  },
-  {
-    symbol: "XRP",
-    name: "XRP",
-    price: "$2.48",
-    change: "-0.38%",
-    risk: 43,
-    vol: "4.18%",
-    funding: "-0.004%",
-    oi: "$2.4B",
-    liquidations: "$19M",
-    state: "NORMAL",
-  },
-  {
-    symbol: "DOGE",
-    name: "Dogecoin",
-    price: "$0.218",
-    change: "+0.71%",
-    risk: 39,
-    vol: "5.43%",
-    funding: "+0.006%",
-    oi: "$1.8B",
-    liquidations: "$14M",
-    state: "NORMAL",
-  },
-];
 
-function riskColour(risk: number) {
-  if (risk >= 85) return "text-[#ff5c5c]";
-  if (risk >= 70) return "text-[#ffb000]";
-  if (risk >= 50) return "text-[#ffd166]";
-  return "text-[#38d996]";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://127.0.0.1:8000";
+
+const REFRESH_INTERVAL = 15_000;
+
+
+type DerivativesAsset = {
+  symbol: string;
+  asset: string;
+  total_open_interest: number | null;
+  median_funding_rate: number | null;
+  calculated_at: string | null;
+};
+
+
+type GlobalLiquidations = {
+  total_liquidations_24h: number | null;
+  long_liquidation_share_24h: number | null;
+  collected_at?: string | null;
+};
+
+
+type RiskAsset = {
+  risk_rank: number | null;
+  symbol: string;
+  asset: string | null;
+  provisional_risk_score: number | null;
+  risk_cross_percentile: number | null;
+
+  volatility_component: number | null;
+  leverage_component: number | null;
+  funding_component: number | null;
+  liquidation_component: number | null;
+  market_structure_component: number | null;
+
+  funding_component_source: string | null;
+
+  primary_state: string | null;
+  state_quality: string | null;
+  risk_ready: boolean;
+
+  risk_source_at: string | null;
+};
+
+
+type StateAsset = {
+  symbol: string;
+  volatility_state: string | null;
+  vol_ratio_1h_vs_24h: number | null;
+  state_ready_1h: boolean;
+  state_quality: string | null;
+  state_source_at: string | null;
+};
+
+
+type SnapshotHealth = {
+  available: boolean;
+  rows: number | null;
+  modified_at: string | null;
+  age_seconds: number | null;
+  error: string | null;
+};
+
+
+type HealthResponse = {
+  status: "healthy" | "degraded" | string;
+  service: string;
+  version: string;
+  checked_at: string;
+  snapshots: Record<string, SnapshotHealth>;
+};
+
+
+async function fetchDataArray<T>(
+  endpoint: string,
+): Promise<T[]> {
+  const response = await fetch(
+    `${API_BASE}${endpoint}?t=${Date.now()}`,
+    {
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `${endpoint} returned HTTP ${response.status}`,
+    );
+  }
+
+  const payload = await response.json();
+
+  if (!Array.isArray(payload.data)) {
+    throw new Error(
+      `${endpoint} did not return a data array`,
+    );
+  }
+
+  return payload.data as T[];
 }
 
-function changeColour(change: string) {
-  return change.startsWith("+")
-    ? "text-[#38d996]"
-    : "text-[#ff5c5c]";
+
+async function fetchHealth(): Promise<HealthResponse> {
+  const response = await fetch(
+    `${API_BASE}/api/health?t=${Date.now()}`,
+    {
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `/api/health returned HTTP ${response.status}`,
+    );
+  }
+
+  return response.json();
 }
+
 
 export default function Dashboard() {
+  const [
+    derivatives,
+    setDerivatives,
+  ] = useState<DerivativesAsset[]>([]);
+
+  const [
+    globalLiquidations,
+    setGlobalLiquidations,
+  ] = useState<GlobalLiquidations | null>(
+    null,
+  );
+
+  const [
+    riskRows,
+    setRiskRows,
+  ] = useState<RiskAsset[]>([]);
+
+  const [
+    stateRows,
+    setStateRows,
+  ] = useState<StateAsset[]>([]);
+
+  const [
+    health,
+    setHealth,
+  ] = useState<HealthResponse | null>(
+    null,
+  );
+
+  const [
+    summaryError,
+    setSummaryError,
+  ] = useState(false);
+
+  const [
+    riskError,
+    setRiskError,
+  ] = useState<string | null>(
+    null,
+  );
+
+  const [
+    riskLoading,
+    setRiskLoading,
+  ] = useState(true);
+
+  const [
+    lastSummaryUpdate,
+    setLastSummaryUpdate,
+  ] = useState<Date | null>(
+    null,
+  );
+
+
+  // ==========================================================
+  // LOAD DASHBOARD SUMMARY DATA
+  // ==========================================================
+
+  useEffect(() => {
+    let mounted = true;
+
+
+    async function loadSummary() {
+      const results = await Promise.allSettled([
+        fetchDataArray<DerivativesAsset>(
+          "/api/derivatives/latest",
+        ),
+
+        fetchDataArray<GlobalLiquidations>(
+          "/api/liquidations/global",
+        ),
+
+        fetchDataArray<RiskAsset>(
+          "/api/risk/latest",
+        ),
+
+        fetchDataArray<StateAsset>(
+          "/api/states/latest",
+        ),
+
+        fetchHealth(),
+      ]);
+
+
+      if (!mounted) {
+        return;
+      }
+
+
+      let anyError = false;
+
+
+      const derivativesResult = results[0];
+
+      if (derivativesResult.status === "fulfilled") {
+        setDerivatives(
+          derivativesResult.value,
+        );
+      } else {
+        anyError = true;
+      }
+
+
+      const liquidationsResult = results[1];
+
+      if (liquidationsResult.status === "fulfilled") {
+        setGlobalLiquidations(
+          liquidationsResult.value[0] ?? null,
+        );
+      } else {
+        anyError = true;
+      }
+
+
+      const riskResult = results[2];
+
+      if (riskResult.status === "fulfilled") {
+        setRiskRows(
+          riskResult.value,
+        );
+
+        setRiskError(null);
+      } else {
+        anyError = true;
+
+        setRiskError(
+          riskResult.reason instanceof Error
+            ? riskResult.reason.message
+            : "RISK DATA UNAVAILABLE",
+        );
+      }
+
+      setRiskLoading(false);
+
+
+      const statesResult = results[3];
+
+      if (statesResult.status === "fulfilled") {
+        setStateRows(
+          statesResult.value,
+        );
+      } else {
+        anyError = true;
+      }
+
+
+      const healthResult = results[4];
+
+      if (healthResult.status === "fulfilled") {
+        setHealth(
+          healthResult.value,
+        );
+      } else {
+        anyError = true;
+      }
+
+
+      setSummaryError(
+        anyError,
+      );
+
+      setLastSummaryUpdate(
+        new Date(),
+      );
+    }
+
+
+    loadSummary();
+
+
+    const interval =
+      window.setInterval(
+        loadSummary,
+        REFRESH_INTERVAL,
+      );
+
+
+    return () => {
+      mounted = false;
+
+      window.clearInterval(
+        interval,
+      );
+    };
+  }, []);
+
+
+  // ==========================================================
+  // SUMMARY METRICS
+  // ==========================================================
+
+  const totalOpenInterest = useMemo(
+    () =>
+      derivatives.reduce(
+        (
+          total,
+          asset,
+        ) => {
+          const value =
+            asset.total_open_interest;
+
+          if (
+            value === null ||
+            !Number.isFinite(value)
+          ) {
+            return total;
+          }
+
+          return total + value;
+        },
+        0,
+      ),
+    [derivatives],
+  );
+
+
+  const medianFunding = useMemo(
+    () => {
+      const values = derivatives
+        .map(
+          (asset) =>
+            asset.median_funding_rate,
+        )
+        .filter(
+          (
+            value,
+          ): value is number =>
+            value !== null &&
+            Number.isFinite(value),
+        )
+        .sort(
+          (a, b) => a - b,
+        );
+
+
+      if (values.length === 0) {
+        return null;
+      }
+
+
+      const midpoint = Math.floor(
+        values.length / 2,
+      );
+
+
+      if (
+        values.length % 2 === 0
+      ) {
+        return (
+          values[midpoint - 1] +
+          values[midpoint]
+        ) / 2;
+      }
+
+
+      return values[midpoint];
+    },
+    [derivatives],
+  );
+
+
+  const readyRiskRows = useMemo(
+    () =>
+      riskRows
+        .filter(
+          (row) =>
+            row.risk_ready &&
+            finite(
+              row.provisional_risk_score,
+            ),
+        )
+        .sort(
+          (a, b) =>
+            (
+              b.provisional_risk_score ??
+              -Infinity
+            )
+            -
+            (
+              a.provisional_risk_score ??
+              -Infinity
+            ),
+        ),
+    [riskRows],
+  );
+
+
+  const topRisk =
+    readyRiskRows[0] ?? null;
+
+
+  const volatilityBreadth = useMemo(
+    () => {
+      const valid = stateRows.filter(
+        (row) =>
+          row.state_ready_1h &&
+          (
+            row.volatility_state ===
+            "EXPANDING"
+            ||
+            finite(
+              row.vol_ratio_1h_vs_24h,
+            )
+          ),
+      );
+
+
+      if (valid.length === 0) {
+        return null;
+      }
+
+
+      const expanding = valid.filter(
+        (row) =>
+          row.volatility_state ===
+          "EXPANDING"
+          ||
+          (
+            finite(
+              row.vol_ratio_1h_vs_24h,
+            )
+            &&
+            (
+              row.vol_ratio_1h_vs_24h ??
+              0
+            ) > 1
+          ),
+      );
+
+
+      return (
+        expanding.length /
+        valid.length
+      );
+    },
+    [stateRows],
+  );
+
+
+
+  const apiStatus =
+    health === null
+      ? (
+        summaryError
+          ? "ERROR"
+          : "LOADING"
+      )
+      : health.status === "healthy"
+        ? "ONLINE"
+        : "DEGRADED";
+
+
   return (
-    <main className="dashboard-terminal min-h-screen bg-[#050505] text-[#f2f2f2]">
+    <main className="dashboard-terminal min-h-screen bg-[#050505] text-[#f4f4f4]">
 
       {/* NAV */}
-      <header className="flex items-center justify-between border-b border-[#3a3a3a] bg-[#0d0d0d] px-5 py-2 text-xs">
+      <header className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-3 border-b border-[#4a4a4a] bg-[#0d0d0d]/95 px-5 py-3 text-xs backdrop-blur">
 
         <div className="flex items-center gap-6">
 
           <Link
             href="/"
-            className="font-bold text-[#ffb000]"
+            className="text-sm font-black tracking-[0.16em] text-[#ffb000]"
           >
             CDRR
           </Link>
 
-          <span className="border-b border-[#ffb000] pb-1 text-white">
+          <span className="border-b-2 border-[#ffb000] pb-1 font-semibold text-white">
             RISK RADAR
           </span>
 
-          <span className="text-[#8a8a8a]">
+          <span className="text-[#a0a0a0]">
             MARKETS
           </span>
 
-          <span className="text-[#8a8a8a]">
+          <span className="text-[#a0a0a0]">
             MODELS
           </span>
 
-          <span className="text-[#8a8a8a]">
+          <span className="text-[#a0a0a0]">
             METHODOLOGY
           </span>
 
         </div>
 
-        <div className="flex gap-5">
 
-          <span className="text-[#38d996]">
-            ● LIVE
+        <div className="flex items-center gap-5">
+
+          <span
+            className={
+              apiStatus === "ONLINE"
+                ? "font-semibold text-[#38d996]"
+                : apiStatus === "DEGRADED"
+                  ? "font-semibold text-[#ffb000]"
+                  : apiStatus === "ERROR"
+                    ? "font-semibold text-[#ff6666]"
+                    : "text-[#999]"
+            }
+          >
+            ● {apiStatus}
           </span>
 
-          <span className="text-[#8a8a8a]">
-            UTC
+          <span className="text-[#9a9a9a]">
+            {lastSummaryUpdate
+              ? `${lastSummaryUpdate
+                  .toISOString()
+                  .slice(11, 19)} UTC`
+              : "UTC"}
           </span>
 
         </div>
 
       </header>
 
+
       {/* SUMMARY METRICS */}
-      <div className="grid grid-cols-2 border-b border-[#3a3a3a] bg-[#0d0d0d] md:grid-cols-5">
+      <div className="grid grid-cols-2 border-b border-[#444] bg-[#0d0d0d] lg:grid-cols-5">
 
         <Metric
-          label="GLOBAL RISK"
-          value="72"
-          sub="HIGH ↑"
+          label="TOP CDRR RISK"
+          value={
+            finite(
+              topRisk
+                ?.provisional_risk_score,
+            )
+              ? (
+                topRisk
+                  ?.provisional_risk_score ??
+                0
+              ).toFixed(1)
+              : "—"
+          }
+          sub={
+            topRisk
+              ? `#1 ${topRisk.symbol} · PROVISIONAL`
+              : riskError
+                ? "RISK API OFFLINE"
+                : "LOADING"
+          }
           valueClass="text-[#ffb000]"
         />
 
+
         <Metric
-          label="TOTAL OPEN INTEREST"
-          value="$68.4B"
-          sub="+2.8% 24H"
+          label="TRACKED OPEN INTEREST"
+          value={
+            derivatives.length > 0
+              ? formatMoney(
+                  totalOpenInterest,
+                )
+              : "—"
+          }
+          sub={
+            derivatives.length > 0
+              ? `${derivatives.length} ASSETS · CLEAN OI`
+              : "LOADING"
+          }
         />
+
 
         <Metric
           label="24H LIQUIDATIONS"
-          value="$512M"
-          sub="LONG BIAS"
+          value={
+            finite(
+              globalLiquidations
+                ?.total_liquidations_24h,
+            )
+              ? formatMoney(
+                  globalLiquidations
+                    ?.total_liquidations_24h ??
+                  0,
+                )
+              : "—"
+          }
+          sub={
+            finite(
+              globalLiquidations
+                ?.long_liquidation_share_24h,
+            )
+              ? `${(
+                  (
+                    globalLiquidations
+                      ?.long_liquidation_share_24h ??
+                    0
+                  ) * 100
+                ).toFixed(1)}% LONG`
+              : "LOADING"
+          }
         />
+
 
         <Metric
           label="MEDIAN FUNDING"
-          value="+0.014%"
-          sub="POSITIVE"
+          value={
+            medianFunding !== null
+              ? formatSignedPercent(
+                  medianFunding,
+                )
+              : "—"
+          }
+          sub={
+            derivatives.length > 0
+              ? "CROSS-ASSET MEDIAN"
+              : "LOADING"
+          }
+          valueClass={
+            fundingColour(
+              medianFunding,
+            )
+          }
         />
+
 
         <Metric
           label="VOLATILITY BREADTH"
-          value="68%"
-          sub="EXPANDING"
+          value={
+            volatilityBreadth !== null
+              ? `${(
+                  volatilityBreadth *
+                  100
+                ).toFixed(0)}%`
+              : "—"
+          }
+          sub={
+            volatilityBreadth !== null
+              ? "1H VOL EXPANDING"
+              : "LOADING"
+          }
         />
 
       </div>
 
-      <div className="p-4">
+
+      <div className="p-4 lg:p-5">
 
         {/* TITLE */}
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
 
           <div>
 
-            <div className="text-sm font-bold text-[#f5f5f5]">
+            <div className="text-lg font-black tracking-wide text-[#f7f7f7]">
               DERIVATIVES RISK RADAR
             </div>
 
-            <div className="mt-1 text-[10px] tracking-wide text-[#8a8a8a]">
-              RANKED BY COMPOSITE DERIVATIVES RISK SCORE
+            <div className="mt-1 text-xs tracking-[0.08em] text-[#a0a0a0]">
+              LIVE PROCESSED MARKET STATE · 20-ASSET RESEARCH UNIVERSE
             </div>
 
           </div>
 
+
           <div className="flex gap-2">
 
-            <button className="border border-[#4a4a4a] bg-[#111] px-3 py-1.5 text-[10px] text-[#b5b5b5] transition hover:border-[#777] hover:text-white">
-              FILTER
-            </button>
-
-            <button className="border border-[#4a4a4a] bg-[#111] px-3 py-1.5 text-[10px] text-[#b5b5b5] transition hover:border-[#777] hover:text-white">
+            <button
+              onClick={() =>
+                window.location.reload()
+              }
+              className="border border-[#555] bg-[#111] px-4 py-2 text-xs font-semibold text-[#c8c8c8] transition hover:border-[#888] hover:text-white"
+            >
               REFRESH
             </button>
 
@@ -193,88 +704,242 @@ export default function Dashboard() {
 
         </div>
 
-        <MarketTable />
 
-        <div className="mt-4">
-          <VolatilityPanel />
-        </div>
+        {/* PRIMARY RISK RANKING */}
+        <RiskRadarPanel
+          rows={riskRows}
+          loading={riskLoading}
+          error={riskError}
+        />
 
-        {/* LOWER PANELS */}
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
 
-          <TerminalPanel title="RISK EVENTS">
+        {/* OVERVIEW PANELS */}
+        <div className="mt-4 grid gap-4 xl:grid-cols-3">
 
-            <Event
-              time="18:42"
-              asset="ETH"
-              text="Risk score crossed 85"
-              type="HIGH"
-            />
+          <TerminalPanel title="TOP RISK NAMES">
 
-            <Event
-              time="18:30"
-              asset="SOL"
-              text="Volatility regime expansion"
-              type="WARN"
-            />
+            <div>
+              {readyRiskRows
+                .slice(
+                  0,
+                  5,
+                )
+                .map(
+                  (row) => (
+                    <RiskNameRow
+                      key={row.symbol}
+                      rank={
+                        row.risk_rank
+                      }
+                      asset={
+                        row.symbol
+                      }
+                      score={
+                        row.provisional_risk_score
+                      }
+                      state={
+                        row.primary_state
+                      }
+                    />
+                  ),
+                )}
 
-            <Event
-              time="17:55"
-              asset="BTC"
-              text="Open interest +4.2%"
-              type="INFO"
-            />
-
-          </TerminalPanel>
-
-          <TerminalPanel title="MARKET STATE">
-
-            <div className="space-y-4">
-
-              <RiskBar label="VOLATILITY" value={81} />
-
-              <RiskBar label="LEVERAGE" value={76} />
-
-              <RiskBar label="CROWDING" value={69} />
-
-              <RiskBar label="LIQUIDATIONS" value={73} />
-
-              <RiskBar label="FRAGMENTATION" value={61} />
-
+              {readyRiskRows.length === 0 && (
+                <div className="py-3 text-xs text-[#989898]">
+                  RISK SNAPSHOT UNAVAILABLE
+                </div>
+              )}
             </div>
 
           </TerminalPanel>
 
+
+          <TerminalPanel
+            title={
+              topRisk
+                ? `#1 RISK DRIVERS · ${topRisk.symbol}`
+                : "#1 RISK DRIVERS"
+            }
+          >
+
+            <div className="space-y-5">
+
+              <RiskBar
+                label="VOLATILITY"
+                value={
+                  topRisk
+                    ?.volatility_component ??
+                  null
+                }
+              />
+
+              <RiskBar
+                label="LEVERAGE / OI"
+                value={
+                  topRisk
+                    ?.leverage_component ??
+                  null
+                }
+              />
+
+              <RiskBar
+                label="FUNDING"
+                value={
+                  topRisk
+                    ?.funding_component ??
+                  null
+                }
+              />
+
+              <RiskBar
+                label="LIQUIDATIONS"
+                value={
+                  topRisk
+                    ?.liquidation_component ??
+                  null
+                }
+              />
+
+              <RiskBar
+                label="CONCENTRATION"
+                value={
+                  topRisk
+                    ?.market_structure_component ??
+                  null
+                }
+              />
+
+            </div>
+
+
+            <div className="mt-4 border-t border-[#333] pt-3 text-[10px] leading-relaxed text-[#9a9a9a]">
+              FACTOR LOADS FOR THE CURRENT #1 RANKED ASSET. THE TOTAL SCORE REMAINS PROVISIONAL AND RELATIVE TO THE TRACKED UNIVERSE.
+            </div>
+
+          </TerminalPanel>
+
+
           <TerminalPanel title="SYSTEM">
 
             <SystemRow
-              name="CMC REST API"
-              status="ONLINE"
+              name="API SERVER"
+              status={apiStatus}
+              detail={
+                health
+                  ? `v${health.version}`
+                  : null
+              }
             />
 
             <SystemRow
-              name="WEBSOCKET"
-              status="ONLINE"
+              name="SPOT SNAPSHOT"
+              status={
+                snapshotStatus(
+                  health,
+                  "spot",
+                )
+              }
+              detail={
+                snapshotAge(
+                  health,
+                  "spot",
+                )
+              }
             />
 
             <SystemRow
               name="VOL ENGINE"
-              status="ACTIVE"
+              status={
+                snapshotStatus(
+                  health,
+                  "volatility",
+                )
+              }
+              detail={
+                snapshotAge(
+                  health,
+                  "volatility",
+                )
+              }
+            />
+
+            <SystemRow
+              name="DERIVATIVES ENGINE"
+              status={
+                snapshotStatus(
+                  health,
+                  "derivatives",
+                )
+              }
+              detail={
+                snapshotAge(
+                  health,
+                  "derivatives",
+                )
+              }
+            />
+
+            <SystemRow
+              name="STATE ENGINE"
+              status={
+                snapshotStatus(
+                  health,
+                  "states",
+                )
+              }
+              detail={
+                snapshotAge(
+                  health,
+                  "states",
+                )
+              }
             />
 
             <SystemRow
               name="RISK ENGINE"
-              status="ACTIVE"
-            />
-
-            <SystemRow
-              name="LAST UPDATE"
-              status="18:44:12 UTC"
+              status={
+                snapshotStatus(
+                  health,
+                  "risk",
+                )
+              }
+              detail={
+                snapshotAge(
+                  health,
+                  "risk",
+                )
+              }
             />
 
           </TerminalPanel>
 
         </div>
+
+
+        {/* LIVE SPOT MARKET */}
+        <div className="mt-6">
+          <MarketTable />
+        </div>
+
+
+        {/* VOLATILITY ENGINE */}
+        <div className="mt-5">
+          <VolatilityPanel />
+        </div>
+
+
+        {/* DERIVATIVES ENGINE */}
+        <div className="mt-5">
+          <DerivativesPanel />
+        </div>
+
+
+        {/* LIQUIDATIONS */}
+        <div className="mt-5">
+          <LiquidationsPanel />
+        </div>
+
+
 
       </div>
 
@@ -282,11 +947,16 @@ export default function Dashboard() {
   );
 }
 
+
+// ============================================================
+// SUMMARY METRIC
+// ============================================================
+
 function Metric({
   label,
   value,
   sub,
-  valueClass = "text-[#f5f5f5]",
+  valueClass = "text-[#f7f7f7]",
 }: {
   label: string;
   value: string;
@@ -294,19 +964,19 @@ function Metric({
   valueClass?: string;
 }) {
   return (
-    <div className="border-r border-[#3a3a3a] px-4 py-3">
+    <div className="min-h-[98px] border-r border-[#3f3f3f] px-5 py-4">
 
-      <div className="text-[9px] tracking-wider text-[#969696]">
+      <div className="text-[10px] font-semibold tracking-[0.12em] text-[#a2a2a2]">
         {label}
       </div>
 
       <div
-        className={`mt-1 text-xl font-bold ${valueClass}`}
+        className={`mt-1.5 text-2xl font-black tabular-nums ${valueClass}`}
       >
         {value}
       </div>
 
-      <div className="mt-1 text-[9px] text-[#858585]">
+      <div className="mt-1.5 text-[10px] font-medium tracking-wide text-[#929292]">
         {sub}
       </div>
 
@@ -314,21 +984,26 @@ function Metric({
   );
 }
 
+
+// ============================================================
+// TERMINAL PANEL
+// ============================================================
+
 function TerminalPanel({
   title,
   children,
 }: {
-  title: string;
-  children: React.ReactNode;
+  title: ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <section className="border border-[#3a3a3a] bg-[#0d0d0d]">
+    <section className="border border-[#454545] bg-[#0d0d0d]">
 
-      <div className="border-b border-[#3a3a3a] bg-[#161616] px-3 py-2 text-[10px] font-bold text-[#ffb000]">
+      <div className="border-b border-[#454545] bg-[#181818] px-4 py-3 text-xs font-black tracking-[0.08em] text-[#ffb000]">
         {title}
       </div>
 
-      <div className="p-3">
+      <div className="p-4">
         {children}
       </div>
 
@@ -336,68 +1011,96 @@ function TerminalPanel({
   );
 }
 
-function Event({
-  time,
+
+// ============================================================
+// TOP-RISK ROW
+// ============================================================
+
+function RiskNameRow({
+  rank,
   asset,
-  text,
-  type,
+  score,
+  state,
 }: {
-  time: string;
+  rank: number | null;
   asset: string;
-  text: string;
-  type: string;
+  score: number | null;
+  state: string | null;
 }) {
   return (
-    <div className="grid grid-cols-[45px_40px_1fr_45px] border-b border-[#303030] py-2 text-[10px] last:border-0">
+    <div className="grid grid-cols-[34px_52px_64px_1fr] items-center gap-2 border-b border-[#303030] py-3 text-xs last:border-0">
 
-      <span className="text-[#7d7d7d]">
-        {time}
+      <span className="tabular-nums text-[#989898]">
+        {rank !== null
+          ? `#${rank}`
+          : "—"}
       </span>
 
-      <span className="font-bold text-[#49c6e5]">
+      <span className="font-black text-[#49c6e5]">
         {asset}
       </span>
 
-      <span className="text-[#b5b5b5]">
-        {text}
+      <span className="font-black tabular-nums text-[#ffb000]">
+        {finite(score)
+          ? score.toFixed(1)
+          : "—"}
       </span>
 
-      <span className="text-right text-[#ffb000]">
-        {type}
+      <span className="truncate text-right text-[10px] font-medium text-[#bdbdbd]">
+        {state ?? "—"}
       </span>
 
     </div>
   );
 }
 
+
+// ============================================================
+// FACTOR BAR
+// ============================================================
+
 function RiskBar({
   label,
   value,
 }: {
   label: string;
-  value: number;
+  value: number | null;
 }) {
+  const percent =
+    finite(value)
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            value * 100,
+          ),
+        )
+      : 0;
+
+
   return (
     <div>
 
-      <div className="mb-1 flex justify-between text-[10px]">
+      <div className="mb-2 flex justify-between text-xs">
 
-        <span className="text-[#9b9b9b]">
+        <span className="font-semibold text-[#b5b5b5]">
           {label}
         </span>
 
-        <span className="text-[#f4f4f4]">
-          {value}
+        <span className="font-black tabular-nums text-[#f4f4f4]">
+          {finite(value)
+            ? percent.toFixed(0)
+            : "—"}
         </span>
 
       </div>
 
-      <div className="h-1.5 bg-[#2a2a2a]">
+      <div className="h-2 bg-[#282828]">
 
         <div
           className="h-full bg-[#ffb000]"
           style={{
-            width: `${value}%`,
+            width: `${percent}%`,
           }}
         />
 
@@ -407,24 +1110,187 @@ function RiskBar({
   );
 }
 
+
+// ============================================================
+// SYSTEM ROW
+// ============================================================
+
 function SystemRow({
   name,
   status,
+  detail,
 }: {
   name: string;
   status: string;
+  detail: string | null;
 }) {
+  const statusClass =
+    status === "ONLINE" ||
+    status === "ACTIVE"
+      ? "text-[#38d996]"
+      : status === "DEGRADED"
+        ? "text-[#ffb000]"
+        : status === "LOADING"
+          ? "text-[#999]"
+          : "text-[#ff6666]";
+
+
   return (
-    <div className="flex justify-between border-b border-[#303030] py-2 text-[10px] last:border-0">
+    <div className="grid grid-cols-[1fr_auto] items-center gap-3 border-b border-[#303030] py-3 text-xs last:border-0">
 
-      <span className="text-[#949494]">
-        {name}
-      </span>
+      <div>
 
-      <span className="text-[#38d996]">
+        <div className="font-semibold text-[#b3b3b3]">
+          {name}
+        </div>
+
+        {detail && (
+          <div className="mt-1 text-[10px] text-[#8e8e8e]">
+            {detail}
+          </div>
+        )}
+
+      </div>
+
+      <span className={`font-bold ${statusClass}`}>
         {status}
       </span>
 
     </div>
   );
+}
+
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function finite(
+  value: number | null | undefined,
+): value is number {
+  return (
+    value !== null &&
+    value !== undefined &&
+    Number.isFinite(value)
+  );
+}
+
+
+function formatMoney(
+  value: number,
+) {
+  if (!Number.isFinite(value)) {
+    return "—";
+  }
+
+
+  if (Math.abs(value) >= 1e12) {
+    return `$${(
+      value / 1e12
+    ).toFixed(2)}T`;
+  }
+
+
+  if (Math.abs(value) >= 1e9) {
+    return `$${(
+      value / 1e9
+    ).toFixed(1)}B`;
+  }
+
+
+  if (Math.abs(value) >= 1e6) {
+    return `$${(
+      value / 1e6
+    ).toFixed(1)}M`;
+  }
+
+
+  return `$${value.toLocaleString()}`;
+}
+
+
+function formatSignedPercent(
+  value: number,
+) {
+  const percent =
+    value * 100;
+
+  const sign =
+    percent > 0
+      ? "+"
+      : "";
+
+  return `${sign}${percent.toFixed(4)}%`;
+}
+
+
+function fundingColour(
+  value: number | null,
+) {
+  if (
+    value === null ||
+    !Number.isFinite(value)
+  ) {
+    return "text-[#f5f5f5]";
+  }
+
+
+  if (value > 0) {
+    return "text-[#ffb000]";
+  }
+
+
+  if (value < 0) {
+    return "text-[#49c6e5]";
+  }
+
+
+  return "text-[#f5f5f5]";
+}
+
+
+function snapshotStatus(
+  health: HealthResponse | null,
+  name: string,
+) {
+  if (!health) {
+    return "LOADING";
+  }
+
+  return health.snapshots[
+    name
+  ]?.available
+    ? "ACTIVE"
+    : "UNAVAILABLE";
+}
+
+
+function snapshotAge(
+  health: HealthResponse | null,
+  name: string,
+) {
+  const seconds =
+    health
+      ?.snapshots[
+        name
+      ]
+      ?.age_seconds;
+
+  if (!finite(seconds)) {
+    return null;
+  }
+
+  if (seconds < 60) {
+    return `${seconds.toFixed(0)}s old`;
+  }
+
+  if (seconds < 3600) {
+    return `${(
+      seconds / 60
+    ).toFixed(1)}m old`;
+  }
+
+  return `${(
+    seconds / 3600
+  ).toFixed(1)}h old`;
 }

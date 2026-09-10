@@ -1405,7 +1405,7 @@ def get_derivative_market_pairs(
     for id in ids:
 
         start = 1
-        limit = 5000
+        limit = 250
 
         while True:
 

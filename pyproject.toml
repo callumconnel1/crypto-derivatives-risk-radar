@@ -17,6 +17,8 @@ dependencies = [
     "statsmodels",
     "httpx",
     "python-dotenv",
+    "fastapi",
+    "uvicorn[standard]",
 ]
 
 [tool.setuptools]
