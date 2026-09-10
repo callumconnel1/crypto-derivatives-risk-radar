@@ -95,16 +95,7 @@ The collector dynamically adapts its polling interval to live API-plan usage so 
 
 OI changes are calculated only over contracts that exist at both the current and reference timestamp:
 
-\[
-\Delta OI_h^{common}
-=
-\frac{
-\sum_{m\in I}OI_{m,t}
-}{
-\sum_{m\in I}OI_{m,t-h}
-}
--1.
-\]
+$$ \Delta OI_h^{common} = \frac{ \sum_{m\in I}OI_{m,t} }{ \sum_{m\in I}OI_{m,t-h} } -1. $$
 
 This reduces false leverage signals caused by changing contract coverage.
 
@@ -112,16 +103,7 @@ This reduces false leverage signals caused by changing contract coverage.
 
 A Student-\(t\) power-law memory model forecasts conditional variance from 5-minute returns:
 
-\[
-\sigma_{t+1}^{2}
-=
-c
-+
-\beta
-\sum_{k=0}^{K-1}
-\frac{r_{t-k}^{2}}
-{(k+1)^\alpha}.
-\]
+$$ \sigma_{t+1}^{2} = c + \beta \sum_{k=0}^{K-1} \frac{r_{t-k}^{2}} {(k+1)^\alpha}. $$
 
 The model was compared with EWMA in walk-forward testing.
 
@@ -129,17 +111,7 @@ The model was compared with EWMA in walk-forward testing.
 
 Funding, basis and liquidations use prior-only empirical midrank percentiles:
 
-\[
-P(x_t)
-=
-\frac{
-N_{<x_t}
-+
-0.5N_{=x_t}
-}{
-N
-}.
-\]
+$$ P(x_t) = \frac{ N_{<x_t} + 0.5N_{=x_t} }{ N }. $$
 
 This is particularly useful for tied and zero-heavy liquidation data.
 
@@ -179,22 +151,7 @@ Key examples:
 
 ## Current production score
 
-\[
-R_i^{(0)}
-=
-100
-\left(
-0.2V_i
-+
-0.2L_i
-+
-0.2C_i
-+
-0.2Q_i
-+
-0.2D_i
-\right).
-\]
+$$ R_i^{(0)} = 100 \left( 0.2V_i + 0.2L_i + 0.2C_i + 0.2Q_i + 0.2D_i \right). $$
 
 Version:
 
@@ -210,15 +167,7 @@ The word **provisional** is intentional. The project does not optimise weights o
 
 A richer market-structure factor is being collected as a research candidate:
 
-\[
-S_{\text{structure}}^{*}
-=
-0.50C_{\text{OI}}
-+
-0.25B_{\text{magnitude}}
-+
-0.25B_{\text{dispersion}}.
-\]
+$$ S_{\text{structure}}^{*} = 0.50C_{\text{OI}} + 0.25B_{\text{magnitude}} + 0.25B_{\text{dispersion}}. $$
 
 It is not promoted into production until historical calibration and longitudinal validation are sufficiently mature.
 
