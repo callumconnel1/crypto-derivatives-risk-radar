@@ -72,29 +72,11 @@ A separate research layer compares it with:
 
 ### Equal three-way formulation
 
-\[
-S_A
-=
-\frac{
-C_{\text{OI}}
-+
-B_{\text{magnitude}}
-+
-B_{\text{dispersion}}
-}{3}.
-\]
+$$ S_A = \frac{ C_{\text{OI}} + B_{\text{magnitude}} + B_{\text{dispersion}} }{3}. $$
 
 ### Concentration-led formulation
 
-\[
-S_B
-=
-0.50C_{\text{OI}}
-+
-0.25B_{\text{magnitude}}
-+
-0.25B_{\text{dispersion}}.
-\]
+$$ S_B = 0.50C_{\text{OI}} + 0.25B_{\text{magnitude}} + 0.25B_{\text{dispersion}}. $$
 
 Initial cross-sectional snapshots suggested the 50/25/25 candidate alters the production ranking less aggressively while adding information beyond OI concentration.
 
@@ -144,65 +126,23 @@ For each current risk snapshot \(t\), CDRR is evaluated against future outcomes 
 
 ### A. Realised path volatility
 
-\[
-RV_{t,t+h}
-=
-100
-\sqrt{
-\sum_{j=t+1}^{t+h}
-\left(
-\ln
-\frac{P_j}{P_{j-1}}
-\right)^2
-}.
-\]
+$$ RV_{t,t+h} = 100 \sqrt{ \sum_{j=t+1}^{t+h} \left( \ln \frac{P_j}{P_{j-1}} \right)^2 }. $$
 
 This captures realised path variability rather than endpoint direction.
 
 ### B. Maximum absolute move
 
-\[
-M_{t,t+h}
-=
-100
-\max_{s\in[t,t+h]}
-\left|
-\frac{P_s}{P_t}-1
-\right|.
-\]
+$$ M_{t,t+h} = 100 \max_{s\in[t,t+h]} \left| \frac{P_s}{P_t}-1 \right|. $$
 
 ### C. Downside excursion
 
-\[
-DD_{t,t+h}
-=
-100
-\max
-\left(
-0,
--\min_{s\in[t,t+h]}
-\left(
-\frac{P_s}{P_t}-1
-\right)
-\right).
-\]
+$$ DD_{t,t+h} = 100 \max \left( 0, -\min_{s\in[t,t+h]} \left( \frac{P_s}{P_t}-1 \right) \right). $$
 
 Downside excursion is retained as one stress diagnostic, but CDRR itself remains direction-neutral.
 
 ### D. Maximum future liquidation/OI stress
 
-\[
-L_{t,t+h}
-=
-\max_{s\in(t,t+h]}
-\left(
-\frac{
-\text{1h liquidations}_s
-}{
-OI_s
-}
-\right).
-\]
+$$ L_{t,t+h} = \max_{s\in(t,t+h]} \left( \frac{ \text{1h liquidations}_s }{ OI_s } \right). $$
 
 The maximum is used instead of summing observations because the source feature is itself a rolling one-hour quantity; summing neighbouring observations would double-count overlapping liquidation windows.
 
@@ -212,9 +152,7 @@ The maximum is used instead of summing observations because the source feature i
 
 A target is not evaluated until the underlying source series has genuinely progressed to or beyond:
 
-\[
-t+h.
-\]
+$$ t+h. $$
 
 Endpoint tolerance may handle irregular sampling around an already completed horizon, but it is not allowed to make a still-future horizon appear mature.
 
@@ -226,15 +164,7 @@ This avoids look-ahead / partial-window contamination.
 
 For every risk snapshot and horizon:
 
-\[
-IC_t^{(h)}
-=
-\rho_S
-\left(
-R_{i,t},
-Y_{i,t\rightarrow t+h}
-\right),
-\]
+$$ IC_t^{(h)} = \rho_S \left( R_{i,t}, Y_{i,t\rightarrow t+h} \right), $$
 
 where:
 
@@ -272,15 +202,11 @@ Q5 = highest-risk assets
 
 For each forward target the validator records:
 
-\[
-E[Y|Q_5]-E[Y|Q_1]
-\]
+$$ E[Y|Q_5]-E[Y|Q_1] $$
 
 and, when defined,
 
-\[
-\frac{E[Y|Q_5]}{E[Y|Q_1]}.
-\]
+$$ \frac{E[Y|Q_5]}{E[Y|Q_1]}. $$
 
 It also calculates the Spearman monotonicity of average forward stress from Q1 through Q5.
 
