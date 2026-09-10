@@ -24,21 +24,7 @@ Direction is deliberately kept separate from stress magnitude. A high CDRR score
 
 The current production score is:
 
-$$
-R_i^{(0)}
-=
-100\left(
-0.2V_i
-+
-0.2L_i
-+
-0.2C_i
-+
-0.2Q_i
-+
-0.2D_i
-\right),
-$$
+$$ R_i^{(0)} = 100\left( 0.2V_i + 0.2L_i + 0.2C_i + 0.2Q_i + 0.2D_i \right), $$
 
 where every component is normalised to \([0,1]\).
 
@@ -322,15 +308,7 @@ Current CDRR scores are evaluated against subsequent:
 
 For each timestamp and horizon, the research pipeline calculates a cross-sectional Spearman information coefficient:
 
-$$
-IC_t^{(h)}
-=
-\rho_S
-\left(
-R_{i,t},
-Y_{i,t\rightarrow t+h}
-\right).
-$$
+$$ IC_t^{(h)} = \rho_S \left( R_{i,t}, Y_{i,t\rightarrow t+h} \right). $$
 
 It also compares forward stress across CDRR risk quintiles.
 
@@ -346,15 +324,7 @@ The production fifth factor currently uses open-interest concentration only.
 
 A research pipeline is collecting evidence for a richer candidate:
 
-$$
-S_{\text{structure}}^{*}
-=
-0.50C_{\text{OI}}
-+
-0.25B_{\text{magnitude}}
-+
-0.25B_{\text{dispersion}},
-$$
+$$ S_{\text{structure}}^{*} = 0.50C_{\text{OI}} + 0.25B_{\text{magnitude}} + 0.25B_{\text{dispersion}}, $$
 
 where:
 
