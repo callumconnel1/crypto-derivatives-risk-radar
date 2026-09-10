@@ -161,7 +161,7 @@ Basis is decomposed into two conceptually different signals.
 
 ### Central basis magnitude
 
-$$ B_i = \left| \operatorname{median} (\text{index basis}_{i,\text{venues}}) \right|. $$
+$$ B_i = \left| \mathrm{median}\left(\{b_{i,j}\}_{j=1}^{n_i}\right) \right|. $$
 
 This measures how far the central derivative market is trading from the reference index, irrespective of premium/discount direction.
 
