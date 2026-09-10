@@ -138,7 +138,7 @@ Historical calibration uses **strictly prior observations** only.
 
 Empirical percentiles use midrank tie handling:
 
-$$ P(x_t) = \frac{ N_{<x_t} + \frac{1}{2}N_{=x_t} }{ N }. $$
+$$ P(x_t) = \frac{\left|\{j \mid x_j < x_t\}\right| + \tfrac{1}{2}\left|\{j \mid x_j = x_t\}\right|}{N}. $$
 
 A conservative confirmed historical signal requires both directional and magnitude evidence.
 
