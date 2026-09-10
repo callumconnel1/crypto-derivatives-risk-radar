@@ -6,11 +6,7 @@ Crypto Derivatives Risk Radar is designed to rank **derivatives-market stress**,
 
 The core modelling objective is therefore:
 
-\[
-\text{estimate relative stress magnitude}
-\neq
-\text{predict price direction}.
-\]
+$$ \text{estimate relative stress magnitude} \neq \text{predict price direction}. $$
 
 Directional information is retained in market-state descriptors and supporting evidence, but the scalar CDRR score is direction-neutral.
 
@@ -45,12 +41,7 @@ CDRR calculates annualised realised volatility over multiple horizons including 
 
 It also calculates a short-horizon volatility-expansion ratio such as:
 
-\[
-X_t
-=
-\frac{\sigma^{\text{realised}}_{1h,t}}
-{\sigma^{\text{realised}}_{24h,t}}.
-\]
+$$ X_t = \frac{\sigma^{\text{realised}}_{1h,t}} {\sigma^{\text{realised}}_{24h,t}}. $$
 
 The cross-sectional rank of this ratio identifies assets whose short-horizon volatility is currently expanding relative to their own recent 24h environment.
 
@@ -58,45 +49,21 @@ The cross-sectional rank of this ratio identifies assets whose short-horizon vol
 
 The primary conditional variance model is a symmetric Student-\(t\) power-law memory model:
 
-\[
-\sigma_{t+1}^{2}
-=
-c
-+
-\beta
-\sum_{k=0}^{K-1}
-\frac{r_{t-k}^{2}}
-{(k+1)^{\alpha}},
-\]
+$$ \sigma_{t+1}^{2} = c + \beta \sum_{k=0}^{K-1} \frac{r_{t-k}^{2}} {(k+1)^{\alpha}}, $$
 
 with:
 
-\[
-K=250.
-\]
+$$ K=250. $$
 
 The power-law kernel allows volatility memory to decay more flexibly than a single exponential half-life.
 
 The implementation generates a 12-step forecast on 5-minute data to obtain a next-one-hour conditional variance:
 
-\[
-\widehat V_{t,t+1h}
-=
-\sum_{j=1}^{12}
-\widehat{\sigma}_{t+j|t}^{2}.
-\]
+$$ \widehat V_{t,t+1h} = \sum_{j=1}^{12} \widehat{\sigma}_{t+j|t}^{2}. $$
 
 For presentation, this may be annualised as:
 
-\[
-\widehat{\sigma}_{\text{ann}}
-=
-\sqrt{
-\widehat V_{t,t+1h}
-\times
-8760
-}.
-\]
+$$ \widehat{\sigma}_{\text{ann}} = \sqrt{ \widehat V_{t,t+1h} \times 8760 }. $$
 
 This is a conditional volatility estimate, **not an expected price move**.
 
@@ -131,28 +98,13 @@ Naively comparing aggregate OI through time is vulnerable to changing venue/cont
 
 CDRR therefore defines:
 
-\[
-I_{t,h}
-=
-S_t
-\cap
-S_{t-h},
-\]
+$$ I_{t,h} = S_t \cap S_{t-h}, $$
 
 where \(S_t\) is the set of valid derivative contracts at time \(t\).
 
 The common-universe change is:
 
-\[
-\Delta OI_{t,h}^{\text{common}}
-=
-\frac{
-\sum_{m\in I_{t,h}} OI_{m,t}
-}{
-\sum_{m\in I_{t,h}} OI_{m,t-h}
-}
--1.
-\]
+$$ \Delta OI_{t,h}^{\text{common}} = \frac{ \sum_{m\in I_{t,h}} OI_{m,t} }{ \sum_{m\in I_{t,h}} OI_{m,t-h} } -1. $$
 
 Contract identity is based on the asset, market and exchange identifiers.
 
@@ -186,17 +138,7 @@ Historical calibration uses **strictly prior observations** only.
 
 Empirical percentiles use midrank tie handling:
 
-\[
-P(x_t)
-=
-\frac{
-N_{<x_t}
-+
-\frac{1}{2}N_{=x_t}
-}{
-N
-}.
-\]
+$$ P(x_t) = \frac{ N_{<x_t} + \frac{1}{2}N_{=x_t} }{ N }. $$
 
 A conservative confirmed historical signal requires both directional and magnitude evidence.
 
@@ -219,25 +161,13 @@ Basis is decomposed into two conceptually different signals.
 
 ### Central basis magnitude
 
-\[
-B_i
-=
-\left|
-\operatorname{median}
-(\text{index basis}_{i,\text{venues}})
-\right|.
-\]
+$$ B_i = \left| \operatorname{median} (\text{index basis}_{i,\text{venues}}) \right|. $$
 
 This measures how far the central derivative market is trading from the reference index, irrespective of premium/discount direction.
 
 ### Cross-venue dispersion
 
-\[
-D_i^{\text{basis}}
-=
-IQR
-(\text{index basis}_{i,\text{venues}}).
-\]
+$$ D_i^{\text{basis}} = IQR (\text{index basis}_{i,\text{venues}}). $$
 
 This measures fragmentation/dislocation across venues.
 
@@ -255,15 +185,7 @@ Basis is **not currently included in the production CDRR score**.
 
 A research candidate is being evaluated:
 
-\[
-S_{\text{structure}}^{*}
-=
-0.50C_{\text{OI}}
-+
-0.25B_{\text{magnitude}}
-+
-0.25B_{\text{dispersion}}.
-\]
+$$ S_{\text{structure}}^{*} = 0.50C_{\text{OI}} + 0.25B_{\text{magnitude}} + 0.25B_{\text{dispersion}}. $$
 
 It remains research-only until there is sufficient longitudinal evidence.
 
@@ -285,17 +207,7 @@ For each asset, the current liquidation observation is compared with a strict pr
 
 Midrank ties are used:
 
-\[
-P_t
-=
-\frac{
-N_{<x_t}
-+
-\frac12N_{=x_t}
-}{
-N
-}.
-\]
+$$ P_t = \frac{ N_{<x_t} + \frac12N_{=x_t} }{ N }. $$
 
 This matters because liquidation datasets often contain repeated zeros or repeated provider values.
 
@@ -303,15 +215,7 @@ This matters because liquidation datasets often contain repeated zeros or repeat
 
 Current activity is normalised by current tracked OI:
 
-\[
-L^{OI}_{i,t}
-=
-\frac{
-\text{liquidations}_{i,t}
-}{
-OI_{i,t}
-}.
-\]
+$$ L^{OI}_{i,t} = \frac{ \text{liquidations}_{i,t} }{ OI_{i,t} }. $$
 
 The cross-sectional percentile of this quantity captures whether liquidations are economically material relative to the outstanding derivatives exposure.
 
@@ -319,15 +223,7 @@ The cross-sectional percentile of this quantity captures whether liquidations ar
 
 The production liquidation factor is:
 
-\[
-Q_i
-=
-\min
-\left(
-P^{\text{temporal}}_{\text{liq},i},
-P^{\text{cross}}_{\text{liq/OI},i}
-\right).
-\]
+$$ Q_i = \min \left( P^{\text{temporal}}_{\text{liq},i}, P^{\text{cross}}_{\text{liq/OI},i} \right). $$
 
 This prevents a large dollar liquidation print in a very large market from automatically dominating the ranking.
 
@@ -337,11 +233,7 @@ Long-liquidation share is retained separately.
 
 Directional imbalance can be represented as:
 
-\[
-I_{\text{dir}}
-=
-\left|2s_{\text{long}}-1\right|.
-\]
+$$ I_{\text{dir}} = \left|2s_{\text{long}}-1\right|. $$
 
 A perfectly one-sided but tiny liquidation event is therefore not automatically treated as severe stress.
 
@@ -349,11 +241,7 @@ A perfectly one-sided but tiny liquidation event is therefore not automatically 
 
 Exchange liquidation concentration is calculated from normalised exchange liquidation totals, ensuring the shares sum to one before computing:
 
-\[
-HHI
-=
-\sum_j s_j^2.
-\]
+$$ HHI = \sum_j s_j^2. $$
 
 Provider-reported global shares are retained as diagnostics rather than assumed to form an exact probability distribution.
 
@@ -367,17 +255,7 @@ Ties receive average ranks.
 
 Current features include:
 
-\[
-\begin{aligned}
-&\text{OI-change magnitude percentile}\\
-&\text{liquidations/OI percentile}\\
-&\text{funding magnitude percentile}\\
-&\text{basis magnitude percentile}\\
-&\text{OI concentration percentile}\\
-&\text{volatility expansion percentile}\\
-&\text{absolute price-move percentile}.
-\end{aligned}
-\]
+$$ \begin{aligned} &\text{OI-change magnitude percentile}\\ &\text{liquidations/OI percentile}\\ &\text{funding magnitude percentile}\\ &\text{basis magnitude percentile}\\ &\text{OI concentration percentile}\\ &\text{volatility expansion percentile}\\ &\text{absolute price-move percentile}. \end{aligned} $$
 
 These are descriptive features, not all production risk components.
 
@@ -413,80 +291,29 @@ with five components.
 
 ### Volatility
 
-\[
-V_i
-=
-\operatorname{mean\_available}
-\left(
-P^{\text{history}}_{\sigma,24h},
-P^{\text{cross}}_{\text{vol expansion}}
-\right).
-\]
+$$ V_i = \operatorname{mean\_available} \left( P^{\text{history}}_{\sigma,24h}, P^{\text{cross}}_{\text{vol expansion}} \right). $$
 
 ### Leverage
 
-\[
-L_i
-=
-P^{\text{cross}}
-\left(
-\left|
-\Delta OI^{\text{common}}_{1h}
-\right|
-\right).
-\]
+$$ L_i = P^{\text{cross}} \left( \left| \Delta OI^{\text{common}}_{1h} \right| \right). $$
 
 ### Funding
 
-\[
-C_i
-=
-\begin{cases}
-P^{\text{confirmed historical+cross}}_{\text{funding}},
-& \text{history ready}\\
-P^{\text{confirmed cross}}_{\text{funding}},
-& \text{warm-up}.
-\end{cases}
-\]
+$$ C_i = \begin{cases} P^{\text{confirmed historical+cross}}_{\text{funding}}, & \text{history ready}\\ P^{\text{confirmed cross}}_{\text{funding}}, & \text{warm-up}. \end{cases} $$
 
 The source is stored explicitly.
 
 ### Liquidations
 
-\[
-Q_i
-=
-P^{\text{confirmed}}_{\text{liquidations},1h}.
-\]
+$$ Q_i = P^{\text{confirmed}}_{\text{liquidations},1h}. $$
 
 ### Market structure
 
-\[
-D_i
-=
-P^{\text{cross}}_{HHI(OI)}.
-\]
+$$ D_i = P^{\text{cross}}_{HHI(OI)}. $$
 
 ### Aggregate
 
-\[
-\boxed{
-R_i^{(0)}
-=
-100
-\left(
-0.20V_i
-+
-0.20L_i
-+
-0.20C_i
-+
-0.20Q_i
-+
-0.20D_i
-\right)
-}
-\]
+$$ \boxed{ R_i^{(0)} = 100 \left( 0.20V_i + 0.20L_i + 0.20C_i + 0.20Q_i + 0.20D_i \right) } $$
 
 A score is emitted only when all five components and the underlying state are ready.
 
