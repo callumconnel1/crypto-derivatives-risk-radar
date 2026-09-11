@@ -1,6 +1,10 @@
 # Crypto Derivatives Risk Radar
 
-**Crypto Derivatives Risk Radar (CDRR)** is a quantitative derivatives-market stress monitor built for the **2026 CoinMarketCap Build with CMC API Hackathon**.
+**Crypto Derivatives Risk Radar (CDRR)** is a quantitative crypto-derivatives stress monitor built for the **2026 CoinMarketCap Build with CMC API Hackathon**.
+
+**Track:** Data and Visualisation  
+**Live demo:** https://cdrr.duckdns.org  
+**Repository:** https://github.com/callumconnel1/crypto-derivatives-risk-radar
 
 Rather than predicting whether a cryptocurrency will go up or down, CDRR asks a different question:
 
@@ -12,21 +16,17 @@ The system continuously collects CoinMarketCap market and derivatives data, buil
 
 ## What CDRR measures
 
-CDRR combines five distinct sources of derivatives risk:
+CDRR combines five distinct sources of derivatives stress:
 
 1. **Volatility stress** — own-history realised volatility plus cross-sectional volatility expansion.
 2. **Leverage stress** — magnitude of validated common-universe open-interest changes.
-3. **Funding crowding** — extreme long/short positioning inferred from robust funding-rate calibration.
+3. **Funding crowding** — unusually one-sided perpetual positioning inferred from robust funding-rate calibration.
 4. **Liquidation stress** — unusual liquidation activity confirmed by liquidation-to-open-interest materiality.
-5. **Market structure** — cross-exchange open-interest concentration.
+5. **Concentration** — cross-exchange open-interest concentration.
 
-Direction is deliberately kept separate from stress magnitude. A high CDRR score does **not** mean "price will fall"; it means the asset currently exhibits a comparatively elevated combination of derivatives-market risk signals.
+Direction is deliberately kept separate from stress magnitude. A high CDRR score does **not** mean "price will fall"; it means the asset currently exhibits a comparatively elevated combination of derivatives-market stress signals.
 
-The current production score is:
-
-$$ R_i^{(0)} = 100\left( 0.2V_i + 0.2L_i + 0.2C_i + 0.2Q_i + 0.2D_i \right), $$
-
-where every component is normalised to \([0,1]\).
+The current production score is $R_i^{(0)} = 100\left(0.2V_i + 0.2L_i + 0.2C_i + 0.2Q_i + 0.2D_i\right)$, where every component is normalised to $[0,1]$.
 
 The production model is explicitly versioned as:
 
@@ -34,25 +34,31 @@ The production model is explicitly versioned as:
 provisional_v1_equal_weight
 ```
 
-Absolute labels such as "low", "medium" and "high" are intentionally avoided at this stage. The score is a **relative, provisional risk ranking** across the tracked universe.
+Absolute labels such as "low", "medium" and "high" are intentionally avoided at this stage. The score is a **relative, provisional stress ranking** across the tracked universe.
 
 ---
 
-## Dashboard
+## Live dashboard
 
-The frontend is a Bloomberg-terminal-inspired Next.js dashboard showing:
+The Bloomberg-terminal-inspired Next.js frontend shows:
 
 - live CDRR rankings;
-- component-level risk drivers;
+- component-level stress drivers;
 - spot-market context;
 - realised and conditional volatility;
 - common-universe open-interest changes;
 - funding and basis information;
 - liquidation activity and direction;
 - market-state classifications;
-- data quality and freshness context.
+- data-quality and freshness context.
 
-The dashboard consumes the local FastAPI service rather than calling CoinMarketCap directly from the browser, keeping the API key server-side.
+The deployed application is available at:
+
+```text
+https://cdrr.duckdns.org
+```
+
+The browser never receives the CoinMarketCap API key. The Next.js server proxies `/api/*` requests to the internal FastAPI service, while the collector and API remain private on the host.
 
 ---
 
@@ -98,6 +104,28 @@ The dashboard consumes the local FastAPI service rather than calling CoinMarketC
                     Next.js dashboard
 ```
 
+Production deployment:
+
+```text
+Internet
+   |
+   v
+Caddy :443 (HTTPS)
+   |
+   v
+Next.js :3000
+   |
+   +---- /api/* ----> FastAPI :8000
+                         |
+                         v
+                 Persistent Parquet data
+                         ^
+                         |
+                  CMC collector service
+```
+
+The collector, API and frontend run as separate `systemd` services on the production VPS.
+
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the detailed data flow.
 
 ---
@@ -142,25 +170,79 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the detailed data flow.
 └── pyproject.toml
 ```
 
-Generated market data and research Parquet files are intentionally excluded from Git.
+Generated market-data and research Parquet files are intentionally excluded from Git.
 
 ---
 
-## CoinMarketCap usage
+## CoinMarketCap API usage
 
-CDRR uses CoinMarketCap as its primary market-data source. The collector uses API functionality for:
+CoinMarketCap is the primary market-data source for CDRR.
 
-- latest cryptocurrency quotes;
-- derivative market pairs;
-- cryptocurrency liquidation snapshots;
-- global liquidation snapshots;
-- exchange liquidation snapshots;
-- derivatives exchange summaries;
-- API usage / plan information.
+The production collector uses these CMC Pro API endpoints:
 
-The API key is read server-side and must never be exposed through the frontend or committed to Git.
+```text
+GET /v3/cryptocurrency/quotes/latest
+GET /v5/cryptocurrency/derivatives/market-pairs/list/latest
+GET /v5/derivatives/liquidations/cryptocurrency/list/latest
+GET /v5/derivatives/liquidations/quotes/latest
+GET /v5/derivatives/liquidations/exchange/list/latest
+GET /v5/exchange/derivatives/list
+GET /v1/key/info
+```
 
-Market data attribution: **CoinMarketCap API**. Use of CoinMarketCap data remains subject to CoinMarketCap's applicable API terms and licence.
+They provide the raw spot, derivatives, funding, basis, open-interest, liquidation, exchange and API-plan data from which CDRR builds its processed features.
+
+The API key is read server-side and is never exposed through the frontend or committed to Git.
+
+Market-data attribution: **CoinMarketCap API**. Use of CoinMarketCap data remains subject to CoinMarketCap's applicable API terms and licence.
+
+### Evidence of a real API call
+
+A production collector request looks like:
+
+```http
+GET https://pro-api.coinmarketcap.com/v5/cryptocurrency/derivatives/market-pairs/list/latest?crypto_id=1&start=1&limit=250&category=all&convert=USD
+X-CMC_PRO_API_KEY: <server-side key>
+```
+
+A real response contains per-market fields used directly by the pipeline, including:
+
+```json
+{
+  "market_pair_symbol": "BTC/USDT",
+  "category": "perpetual",
+  "exchange": {
+    "exchange_name": "Binance"
+  },
+  "exchange_reported_quotes": [
+    {
+      "convert_symbol": "USD",
+      "open_interest": 8343305358.9912,
+      "index_price": 79052.78993047,
+      "index_basis": -0.00008660793202,
+      "funding_rate": 0.00006587
+    }
+  ]
+}
+```
+
+The collector validates freshness, identity and provider exclusions before those fields are allowed into the production feature pipeline.
+
+---
+
+## What the CMC API made possible
+
+CDRR depends on being able to observe spot prices, derivative contracts, venue-level open interest, funding, basis and liquidation activity through one data provider.
+
+That made it practical to build a cross-venue stress monitor rather than a single-exchange dashboard. In particular, the derivative market-pair responses expose the fields needed to compare leverage, crowding and venue concentration across a common asset universe.
+
+The API also exposed several implementation challenges that shaped the project:
+
+- derivative contract coverage can change between observations, so CDRR computes **common-universe OI changes** instead of blindly differencing aggregate OI;
+- provider freshness, exclusions and occasional incomplete fields require explicit data-quality gates;
+- funding and basis vary materially across venues, so CDRR uses robust aggregation and historical calibration rather than a single contract;
+- API credits are finite, so the production collector reads `/v1/key/info` and adapts its polling interval to the remaining monthly budget and rate limit;
+- some research questions require longitudinal history that must accumulate during operation, so experimental signals remain outside the production score until enough evidence exists.
 
 ---
 
@@ -185,7 +267,11 @@ pip install --upgrade pip
 pip install -e .
 ```
 
-Create a root `.env` containing the CoinMarketCap API key expected by `scripts/get_data.py`.
+Create a root `.env` containing your CoinMarketCap API key:
+
+```env
+CMC_API_KEY=your_key_here
+```
 
 Do **not** commit `.env`.
 
@@ -204,11 +290,11 @@ frontend/.env.local
 
 with:
 
-```text
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+```env
+API_INTERNAL_URL=http://127.0.0.1:8000
 ```
 
-For access from another machine on the same network, replace `127.0.0.1` with the backend machine's LAN IP.
+The frontend proxies `/api/*` through the Next.js server, so the internal FastAPI address is not exposed to the browser.
 
 ---
 
@@ -233,9 +319,11 @@ The collector includes a lock file to prevent accidental duplicate processes and
 
 ### Start the API
 
+From the repository root:
+
 ```bash
 uvicorn backend.app:app \
-  --host 0.0.0.0 \
+  --host 127.0.0.1 \
   --port 8000 \
   --reload
 ```
@@ -252,14 +340,14 @@ npm run dev
 Open:
 
 ```text
-http://localhost:3000/dashboard
+http://localhost:3000
 ```
 
 ---
 
-## API endpoints
+## Local API endpoints
 
-The FastAPI service exposes local processed snapshots including:
+The FastAPI service exposes processed snapshots including:
 
 ```text
 GET /api/health
@@ -283,7 +371,7 @@ The project does not simply sum raw API fields. Each subsystem includes validati
 
 Highlights include:
 
-- a Student-\(t\) power-law conditional variance model;
+- a Student-$t$ power-law conditional variance model;
 - walk-forward volatility-model comparison against EWMA;
 - common-universe OI changes to prevent changing contract coverage from masquerading as leverage changes;
 - prior-only empirical midrank calibration for funding, basis and liquidations;
@@ -295,7 +383,7 @@ Full details are in [docs/METHODOLOGY.md](docs/METHODOLOGY.md).
 
 ---
 
-## Validation
+## Forward validation
 
 CDRR includes a forward-stress validation framework rather than relying only on contemporaneous plausibility.
 
@@ -306,13 +394,13 @@ Current CDRR scores are evaluated against subsequent:
 - downside excursion;
 - maximum future 1h liquidations / OI.
 
-For each timestamp and horizon, the research pipeline calculates a cross-sectional Spearman information coefficient:
-
-$$ IC_t^{(h)} = \rho_S \left( R_{i,t}, Y_{i,t\rightarrow t+h} \right). $$
+For each timestamp and horizon, the research pipeline calculates the cross-sectional Spearman information coefficient $IC_t^{(h)} = \rho_S\left(R_{i,t}, Y_{i,t\rightarrow t+h}\right)$.
 
 It also compares forward stress across CDRR risk quintiles.
 
-The clean validation epoch begins on **10 September 2026 at 17:22 UTC (18:22 BST)**. At repository completion, the longitudinal sample is still accumulating, so early forward-validation results must not be interpreted as statistically significant.
+The clean validation epoch begins on **10 September 2026 at 17:22 UTC (18:22 BST)**. Early 1h and 4h observations show positive cross-sectional stress-ranking behaviour, and the first mature 24h observations are directionally encouraging for realised volatility, downside excursion and maximum absolute movement.
+
+These observations remain heavily overlapping and serially dependent. They are treated as early model diagnostics, **not as statistical proof and not as justification for optimising production weights**.
 
 See [docs/VALIDATION.md](docs/VALIDATION.md).
 
@@ -320,17 +408,13 @@ See [docs/VALIDATION.md](docs/VALIDATION.md).
 
 ## Research-only market-structure candidate
 
-The production fifth factor currently uses open-interest concentration only.
+The production fifth factor is **open-interest concentration**.
 
-A research pipeline is collecting evidence for a richer candidate:
+A separate research pipeline is collecting evidence for the richer candidate $S_{\text{structure}}^{*} = 0.50C_{\text{OI}} + 0.25B_{\text{magnitude}} + 0.25B_{\text{dispersion}}$, where:
 
-$$ S_{\text{structure}}^{*} = 0.50C_{\text{OI}} + 0.25B_{\text{magnitude}} + 0.25B_{\text{dispersion}}, $$
-
-where:
-
-- \(C_{\text{OI}}\) is the OI-concentration percentile;
-- \(B_{\text{magnitude}}\) is calibrated absolute central basis;
-- \(B_{\text{dispersion}}\) is calibrated cross-venue basis dispersion.
+- $C_{\text{OI}}$ is the OI-concentration percentile;
+- $B_{\text{magnitude}}$ is calibrated absolute central basis;
+- $B_{\text{dispersion}}$ is calibrated cross-venue basis dispersion.
 
 This formulation is **not** used in the production CDRR score. It is being evaluated longitudinally before any promotion to a future model version.
 
@@ -374,14 +458,24 @@ CDRR follows several rules throughout the project:
 
 ## Status
 
-The project is a **hackathon release candidate**.
+CDRR is a **live deployed hackathon build**.
 
-The ingestion, processing, API, dashboard, provisional CDRR model, market-structure research and forward-validation infrastructure are implemented. Historical calibration and forward validation continue to accumulate automatically, so the repository distinguishes clearly between:
+The production system currently includes:
 
-- production functionality;
-- provisional modelling assumptions;
-- research candidates;
-- results that require more longitudinal data.
+- continuous CoinMarketCap ingestion;
+- persistent raw and processed Parquet history;
+- adaptive API-credit management;
+- derivatives data-quality filtering;
+- conditional-volatility modelling;
+- funding, basis and liquidation calibration;
+- common-universe OI measurement;
+- market-state classification;
+- the provisional equal-weight CDRR production score;
+- forward-stress validation infrastructure;
+- FastAPI processed-data endpoints;
+- a public Next.js dashboard served over HTTPS.
+
+Historical calibration and forward validation continue to accumulate automatically. The repository deliberately distinguishes between production functionality, provisional modelling assumptions, research candidates and results that still require more longitudinal data.
 
 ---
 
