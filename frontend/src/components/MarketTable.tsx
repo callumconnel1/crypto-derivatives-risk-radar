@@ -74,9 +74,6 @@ export default function MarketTable() {
     useRef(true);
 
 
-  const API_URL =
-    process.env.NEXT_PUBLIC_API_URL ??
-    "http://127.0.0.1:8000";
 
 
   const loadMarketData = useCallback(
@@ -86,7 +83,7 @@ export default function MarketTable() {
 
 
         const response = await fetch(
-          `${API_URL}/api/market/latest?t=${Date.now()}`,
+          `/api/market/latest?t=${Date.now()}`,
           {
             method: "GET",
             cache: "no-store",
@@ -164,7 +161,7 @@ export default function MarketTable() {
         }
       }
     },
-    [API_URL],
+    [],
   );
 
 

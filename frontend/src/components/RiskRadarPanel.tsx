@@ -192,7 +192,7 @@ export default function RiskRadarPanel({
                 </Header>
 
                 <Header align="right">
-                  STRUCT
+                  CONC
                 </Header>
 
                 <Header>
@@ -361,7 +361,7 @@ export default function RiskRadarPanel({
           </span>
 
           <span>
-            FUNDING USES CROSS-SECTIONAL WARM-UP UNTIL HISTORY IS READY
+            FUNDING SOURCE = HIST + X-SEC WHEN CALIBRATED · X-SEC WARMUP BEFORE HISTORY IS READY
           </span>
 
           <span>

@@ -78,16 +78,13 @@ export default function VolatilityPanel() {
     useRef(true);
 
 
-  const API_URL =
-    process.env.NEXT_PUBLIC_API_URL ??
-    "http://127.0.0.1:8000";
 
 
   const loadData = useCallback(
     async () => {
       try {
         const response = await fetch(
-          `${API_URL}/api/volatility/latest?t=${Date.now()}`,
+          `/api/volatility/latest?t=${Date.now()}`,
           {
             cache: "no-store",
           },
@@ -159,7 +156,7 @@ export default function VolatilityPanel() {
         }
       }
     },
-    [API_URL],
+    [],
   );
 
 

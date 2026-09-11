@@ -7,9 +7,6 @@ import {
 } from "react";
 
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ??
-  "http://127.0.0.1:8000";
 
 const REFRESH_INTERVAL = 15_000;
 
@@ -69,7 +66,7 @@ export default function LiquidationsPanel() {
     async function loadData() {
       try {
         const response = await fetch(
-          `${API_BASE}/api/liquidations/latest?t=${Date.now()}`,
+          `/api/liquidations/latest?t=${Date.now()}`,
           {
             cache: "no-store",
             headers: {
