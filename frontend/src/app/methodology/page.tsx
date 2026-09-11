@@ -66,7 +66,7 @@ const FACTORS = [
     signal:
       "Cross-sectional percentile of the clean open-interest Herfindahl-Hirschman Index.",
     interpretation:
-      "More concentrated venue exposure receives a higher structural-risk component.",
+      "More concentrated venue exposure receives a higher concentration component.",
   },
 ] as const;
 
@@ -277,7 +277,7 @@ export default function MethodologyPage() {
                     <mi>R</mi>
                     <mo>=</mo>
                     <mn>100</mn>
-                    <mo>⁢</mo>
+                    <mo></mo>
                     <mo>(</mo>
                     <mn>0.20</mn>
                     <mi>V</mi>
@@ -987,7 +987,7 @@ export default function MethodologyPage() {
               />
 
               <div className="mt-5 text-sm font-black text-[#f1f1f1]">
-                STRUCTURE = OI CONCENTRATION
+                CONCENTRATION = OI CONCENTRATION
               </div>
 
               <p className="mt-3 text-xs leading-6 text-[#999]">
